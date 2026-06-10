@@ -10,9 +10,11 @@ app = FastAPI()
 async def upload_file(
     file: Annotated[UploadFile, File(description="File to be analysed.")],
 ):
-    filename = str(uuid.uuid4().hex)
-    filepath = f"upload_files/{filename}{Path(file.filename).suffix}"
+    filename = str(uuid.uuid4().hex) # creating random filenames.
+    filepath = f"upload_files/{filename}{Path(file.filename).suffix}" # creating the relative filepath
 
     with open(filepath, "wb") as f:
-        content = await file.read()
-        f.write(content)
+        content = await file.read() # reading the file content
+        f.write(content) # copying the file content to another file
+    
+    return filepath 
