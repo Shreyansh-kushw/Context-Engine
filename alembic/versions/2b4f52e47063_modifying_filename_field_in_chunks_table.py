@@ -1,8 +1,8 @@
-"""Initial Set-up
+"""Modifying filename field in chunks table
 
-Revision ID: 98f550162f98
-Revises:
-Create Date: 2026-06-13 23:13:33.807865
+Revision ID: 2b4f52e47063
+Revises: 98f550162f98
+Create Date: 2026-06-13 23:47:53.260457
 
 """
 
@@ -10,8 +10,8 @@ from typing import Sequence, Union
 
 
 # revision identifiers, used by Alembic.
-revision: str = "98f550162f98"
-down_revision: Union[str, Sequence[str], None] = None
+revision: str = "2b4f52e47063"
+down_revision: Union[str, Sequence[str], None] = "98f550162f98"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

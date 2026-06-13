@@ -6,28 +6,20 @@ from app.database import Base
 
 
 class Chunks(Base):
-
     """Chunks table model for the database"""
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        index= True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
     filename: Mapped[str] = mapped_column(
-        String,
-        unique=True,
-        nullable=False,
-        index=True
+        String, unique=False, nullable=False, index=True
     )
 
-    Chunks: Mapped[str] = mapped_column(
+    chunk_text: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
 
-    Embedding: Mapped[Vector] = mapped_column(
+    embedding: Mapped[Vector] = mapped_column(
         Vector(384),
         nullable=False,
     )

@@ -4,13 +4,20 @@ from docling.datamodel.pipeline_options import (
     PdfPipelineOptions,
     EasyOcrOptions,
 )
+from pathlib import Path
+from sqlalchemy.ext.asyncio import AsyncSession
 import fitz
 
 from app.services.chunker import generate_chunks
+from app.services import embedder
+from app.models import Chunks
 
 
-def pdf_pipeline(filepath: str) -> str:
-    """Processes a PDF file and returns the extracted text as markdown."""
+# Helper Pipelines
+
+
+def pdf_pipeline(filepath: Path):
+    """Processes a PDF file and returns the chunks of the extracted text"""
 
     # initializing the PDF pipeline
     pipeline_options = PdfPipelineOptions()
@@ -33,24 +40,23 @@ def pdf_pipeline(filepath: str) -> str:
     batching = True if page_count > 10 else False
 
     if batching:  # batching logic
-        final_markdown = []
-
-        for start in (1, page_count + 1, 10):
+        final_chunks = []
+        for start in range(1, page_count + 1, 10):
             end = min(start + 9, page_count)
             print(f"Processing pages: {start}-{end}")
 
             result = converter.convert(filepath, page_range=(start, end))
+            chunks = generate_chunks(dl_doc=result.document)
+            final_chunks.extend(chunks)
 
-            final_markdown.append(result.document.export_to_markdown())
-
-        return "\n\n".join(final_markdown)
+        return final_chunks
 
     result = converter.convert(filepath)
     return generate_chunks(dl_doc=result.document)
 
 
-def image_pipeline(filepath: str) -> str:
-    """Processes the images and returns the extracted text as markdown."""
+def image_and_text_pipeline(filepath: Path):
+    """Processes the text and image files and returns the chunks of the extracted text"""
 
     # initializing the converter
     converter = DocumentConverter()
@@ -58,10 +64,49 @@ def image_pipeline(filepath: str) -> str:
     return generate_chunks(dl_doc=converter.convert(filepath).document)
 
 
-def text_pipeline(filepath: str) -> str:
-    """Processes the text files and returns the extracted text as markdown."""
+# Main data ingestion pipeline
 
-    # initializing the converter
-    converter = DocumentConverter()
 
-    return generate_chunks(dl_doc=converter.convert(filepath).document)
+async def ingest_data(filepath: Path, db: AsyncSession) -> None:
+    """The main ingest data pipeline"""
+
+    # getting the filename and filetype
+    filename = filepath.name
+    file_ext = filepath.suffix
+
+    # calling the proper pipeline based on filetype
+    if file_ext.lower() == ".pdf":  # pdf pipeline
+        chunks = pdf_pipeline(filepath)
+
+    elif file_ext.lower() in {
+        ".txt",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".bmp",
+        ".webp",
+        ".tiff",
+        ".tif",
+    }:  # image and text pipeline
+        chunks = image_and_text_pipeline(filepath)
+
+    else:  # unsupported file type
+        raise ValueError(f"Unsupported file type: {file_ext}")
+
+    # generating embeddings and adding to the table in database
+    embeddings = embedder.generate_embeddings([str(chunk) for chunk in chunks])
+
+    for chunk, embedding in zip(chunks, embeddings):
+        new_chunk_field = Chunks(
+            filename=filename, chunk_text=str(chunk), embedding=embedding
+        )
+
+        db.add(new_chunk_field)
+
+    try:
+        await db.commit()
+
+    except Exception:
+        await db.rollback()
+        raise Exception
