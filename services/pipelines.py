@@ -4,6 +4,7 @@ from docling.datamodel.pipeline_options import (
     PdfPipelineOptions,
     EasyOcrOptions,
 )
+from services.chunker import generate_chunks
 import fitz
 
 def pdf_pipeline(filepath: str) -> str:
@@ -49,8 +50,7 @@ def pdf_pipeline(filepath: str) -> str:
         return "\n\n".join(final_markdown)
     
     result = converter.convert(filepath)
-    return result.document.export_to_markdown()
-
+    return generate_chunks(dl_doc=result.document)
 
 def image_pipeline(filepath: str) -> str:
 
@@ -59,7 +59,7 @@ def image_pipeline(filepath: str) -> str:
     # initializing the converter
     converter = DocumentConverter()
     
-    return converter.convert(filepath).document.export_to_markdown()
+    return generate_chunks(dl_doc=converter.convert(filepath).document)
 
 def text_pipeline(filepath: str) -> str:
 
@@ -68,4 +68,4 @@ def text_pipeline(filepath: str) -> str:
     # initializing the converter
     converter = DocumentConverter()
     
-    return converter.convert(filepath).document.export_to_markdown()
+    return generate_chunks(dl_doc=converter.convert(filepath).document)

@@ -213,6 +213,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "pymupdf" },
     { name = "python-multipart" },
+    { name = "transformers" },
 ]
 
 [package.metadata]
@@ -221,6 +222,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.136.3" },
     { name = "pymupdf", specifier = ">=1.27.2.3" },
     { name = "python-multipart", specifier = ">=0.0.32" },
+    { name = "transformers", specifier = ">=5.8.1" },
 ]
 
 [[package]]
