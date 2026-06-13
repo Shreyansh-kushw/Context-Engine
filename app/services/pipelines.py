@@ -67,7 +67,7 @@ def image_and_text_pipeline(filepath: Path):
 # Main data ingestion pipeline
 
 
-async def ingest_data(filepath: Path, db: AsyncSession) -> None:
+async def ingestion_pipeline(filepath: Path, db: AsyncSession):
     """The main ingest data pipeline"""
 
     # getting the filename and filetype
