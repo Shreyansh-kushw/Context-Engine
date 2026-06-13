@@ -7,6 +7,8 @@ from app.database import Base
 
 class Chunks(Base):
     """Chunks table model for the database"""
+    
+    __tablename__ = "chunks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 

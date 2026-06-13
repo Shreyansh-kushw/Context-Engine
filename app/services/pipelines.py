@@ -95,11 +95,11 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession):
         raise ValueError(f"Unsupported file type: {file_ext}")
 
     # generating embeddings and adding to the table in database
-    embeddings = embedder.generate_embeddings([str(chunk) for chunk in chunks])
+    embeddings = embedder.generate_embeddings([chunk.text for chunk in chunks])
 
     for chunk, embedding in zip(chunks, embeddings):
         new_chunk_field = Chunks(
-            filename=filename, chunk_text=str(chunk), embedding=embedding
+            filename=filename, chunk_text=chunk.text, embedding=embedding
         )
 
         db.add(new_chunk_field)

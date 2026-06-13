@@ -3,7 +3,7 @@ from transformers import AutoTokenizer
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
 
 EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
-MAX_TOKENS = ...
+MAX_TOKENS = 250
 
 # initalizing the tokenizer
 tokenizer = HuggingFaceTokenizer(
