@@ -7,8 +7,8 @@ from docling.datamodel.pipeline_options import (
 from services.chunker import generate_chunks
 import fitz
 
-def pdf_pipeline(filepath: str) -> str:
 
+def pdf_pipeline(filepath: str) -> str:
     """Processes a PDF file and returns the extracted text as markdown."""
 
     # initializing the PDF pipeline
@@ -19,9 +19,7 @@ def pdf_pipeline(filepath: str) -> str:
     # initializing the docling converter
     converter = DocumentConverter(
         format_options={
-            InputFormat.PDF : PdfFormatOption(
-                pipeline_options=pipeline_options
-            )
+            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
         }
     )
 
@@ -33,39 +31,36 @@ def pdf_pipeline(filepath: str) -> str:
     # checking if there is any need for batching.
     batching = True if page_count > 10 else False
 
-    if batching: # batching logic
+    if batching:  # batching logic
         final_markdown = []
-        
-        for start in (1, page_count+1, 10):
+
+        for start in (1, page_count + 1, 10):
             end = min(start + 9, page_count)
             print(f"Processing pages: {start}-{end}")
 
-            result = converter.convert(
-                filepath,
-                page_range=(start,end)
-            )
+            result = converter.convert(filepath, page_range=(start, end))
 
             final_markdown.append(result.document.export_to_markdown())
 
         return "\n\n".join(final_markdown)
-    
+
     result = converter.convert(filepath)
     return generate_chunks(dl_doc=result.document)
 
-def image_pipeline(filepath: str) -> str:
 
+def image_pipeline(filepath: str) -> str:
     """Processes the images and returns the extracted text as markdown."""
 
     # initializing the converter
     converter = DocumentConverter()
-    
+
     return generate_chunks(dl_doc=converter.convert(filepath).document)
 
-def text_pipeline(filepath: str) -> str:
 
+def text_pipeline(filepath: str) -> str:
     """Processes the text files and returns the extracted text as markdown."""
 
     # initializing the converter
     converter = DocumentConverter()
-    
+
     return generate_chunks(dl_doc=converter.convert(filepath).document)
