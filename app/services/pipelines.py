@@ -6,7 +6,7 @@ from docling.datamodel.pipeline_options import (
 )
 import fitz
 
-from services.chunker import generate_chunks
+from app.services.chunker import generate_chunks
 
 
 def pdf_pipeline(filepath: str) -> str:
