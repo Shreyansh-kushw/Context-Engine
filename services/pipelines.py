@@ -4,8 +4,9 @@ from docling.datamodel.pipeline_options import (
     PdfPipelineOptions,
     EasyOcrOptions,
 )
-from services.chunker import generate_chunks
 import fitz
+
+from services.chunker import generate_chunks
 
 
 def pdf_pipeline(filepath: str) -> str:
