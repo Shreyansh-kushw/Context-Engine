@@ -13,7 +13,7 @@ from app.utils.config import settings
 config = context.config
 
 # Overwrite the sqlalchemy.url in alembic.ini with the one from your .env
-config.set_main_option('sqlalchemy.url', settings.database_url)
+config.set_main_option('sqlalchemy.url', settings.database_url_alembic)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
