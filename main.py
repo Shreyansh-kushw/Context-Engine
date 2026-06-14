@@ -7,6 +7,7 @@ import uuid
 
 from app.services.pipelines import ingestion_pipeline, retrieval_pipeline
 from app.database import get_db
+from app.schema import QueryRequest
 
 app = FastAPI()
 
@@ -29,14 +30,14 @@ async def upload_file(
 
     await ingestion_pipeline(filepath, db)
 
+    return {"filename": str(filepath.name), "message": "File uploaded successfully"}
 
 @app.post("/qna")
 async def ques_answer(
-    query: Annotated[str, Field(description="Query to be answered.")],
-    filename: Annotated[str, Field(description="File name for the file in question.")],
+    request: QueryRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Endpoint to generate response for the asked query"""
 
-    response = await retrieval_pipeline(query, filename, db)
+    response = await retrieval_pipeline(request.query, request.filename, db)
     return response
