@@ -12,7 +12,7 @@ import fitz
 from app.services.chunker import generate_chunks
 from app.services import embedder
 from app.models import Chunks
-
+from app.services.llm_service import generate_response
 
 # Helper Pipelines
 
@@ -116,17 +116,13 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession):
 # Main retrieval pipeline
 
 
-async def retrieval_pipeline(
-    query: str,
-    filename: str,
-    db: AsyncSession
-):
+async def retrieval_pipeline(query: str, filename: str, db: AsyncSession):
     """Main retrieval pipeline"""
 
     # generating embeddings for the query
     query_embedding = embedder.generate_embeddings(query)
 
-    # getting all the database fields with the given filename. 
+    # getting all the database fields with the given filename.
     results = await db.execute(
         select(Chunks)
         .where(Chunks.filename == filename)
@@ -137,5 +133,5 @@ async def retrieval_pipeline(
     chunk_fields = results.scalars().all()
     chunk_texts = [chunk.chunk_text for chunk in chunk_fields]
 
-    
-    
+    response = await generate_response(chunks=chunk_texts, question=query)
+    return response
