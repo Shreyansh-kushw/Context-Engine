@@ -38,5 +38,5 @@ async def ques_answer(
 ):
     """Endpoint to generate response for the asked query"""
 
-    response = retrieval_pipeline(query, filename, db)
+    response = await retrieval_pipeline(query, filename, db)
     return response
