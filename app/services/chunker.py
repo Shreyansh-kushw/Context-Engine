@@ -2,8 +2,8 @@ from docling.chunking import HybridChunker
 from transformers import AutoTokenizer
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
 
-EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
-MAX_TOKENS = 250
+EMBED_MODEL_ID = "BAAI/bge-base-en-v1.5"
+MAX_TOKENS = 512
 
 # initalizing the tokenizer
 tokenizer = HuggingFaceTokenizer(
