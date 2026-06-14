@@ -22,6 +22,6 @@ class Chunks(Base):
     )
 
     embedding: Mapped[Vector] = mapped_column(
-        Vector(384),
+        Vector(768),
         nullable=False,
     )

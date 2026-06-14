@@ -2,6 +2,7 @@ from typing import Annotated
 from fastapi import FastAPI, File, UploadFile, Depends
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import Field
 import uuid
 
 from app.services.pipelines import ingestion_pipeline
@@ -23,3 +24,11 @@ async def upload_file(
         f.write(content)  # copying the file content to another file
 
     await ingestion_pipeline(filepath, db)
+
+@app.post("/qna")
+async def ques_answer(
+    query: Annotated[str, Field(description="Query to be answered.")],
+    filename: Annotated[str, Field(description="File name for the file in question.")],
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    ...

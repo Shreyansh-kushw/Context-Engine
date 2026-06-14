@@ -6,6 +6,7 @@ from docling.datamodel.pipeline_options import (
 )
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import fitz
 
 from app.services.chunker import generate_chunks
@@ -110,3 +111,31 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession):
     except Exception:
         await db.rollback()
         raise Exception
+
+
+# Main retrieval pipeline
+
+
+async def retrieval_pipeline(
+    query: str,
+    filename: str,
+    db: AsyncSession
+):
+    """Main retrieval pipeline"""
+
+    # generating embeddings for the query
+    query_embedding = embedder.generate_embeddings(query)
+
+    # getting all the database fields with the given filename. 
+    results = await db.execute(
+        select(Chunks)
+        .where(Chunks.filename == filename)
+        .order_by(Chunks.embedding.cosine_distance(query_embedding))
+        .limit(5)
+    )
+
+    chunk_fields = results.scalars().all()
+    chunk_texts = [chunk.chunk_text for chunk in chunk_fields]
+
+    
+    
