@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import FastAPI, File, UploadFile, Depends
+from fastapi import BackgroundTasks, Depends, FastAPI, File, UploadFile
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import Field
@@ -14,6 +14,7 @@ app = FastAPI()
 
 @app.post("/upload-file")
 async def upload_file(
+    background_tasks: BackgroundTasks,
     file: Annotated[UploadFile, File(description="File to be analysed.")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -28,7 +29,7 @@ async def upload_file(
         content = await file.read()  # reading the file content
         f.write(content)  # copying the file content to another file
 
-    await ingestion_pipeline(filepath, db)
+    background_tasks.add_task(ingestion_pipeline, filepath, db)
 
     return {"filename": str(filepath.name), "message": "File uploaded successfully"}
 

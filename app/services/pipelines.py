@@ -107,6 +107,7 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession):
 
     try:
         await db.commit()
+        print("Processing Complete!")
 
     except Exception:
         await db.rollback()
