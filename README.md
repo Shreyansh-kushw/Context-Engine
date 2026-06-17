@@ -200,6 +200,14 @@ curl -X POST 'http://localhost:8000/qna' \
 
 ---
 
+## Deployment Note
+Context Engine requires significant RAM due to local embedding models 
+(SentenceTransformers) and OCR (EasyOCR). Recommended minimum: 2GB RAM.
+Free tier deployment is not currently supported. 
+Run locally using the setup instructions above.
+
+---
+
 ## 🛠️ Engineering Notes
 
 A few non-obvious problems that came up during development:
