@@ -6,7 +6,7 @@
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![pgvector](https://img.shields.io/badge/Vector_Search-pgvector-6C63FF?style=flat-square)
-![Groq](https://img.shields.io/badge/LLM-Groq_(Llama--3)-F55036?style=flat-square)
+![Groq](https://img.shields.io/badge/LLM-Groq-F55036?style=flat-square)
 ![SentenceTransformers](https://img.shields.io/badge/Embeddings-SentenceTransformers-FF9900?style=flat-square)
 
 Most LLMs can't answer questions about your specific documents — they either hallucinate or simply don't have the context. Context Engine solves this by building a full RAG (Retrieval-Augmented Generation) pipeline that ingests your documents, stores them as semantic vector embeddings, and retrieves only the most relevant context before passing it to an LLM — so answers are always grounded in your actual content, never fabricated.
