@@ -1,12 +1,20 @@
-# Context Engine
+# 🔍 Context Engine
 
 > Upload any document. Ask anything about it. Get accurate, grounded answers.
+
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+![Python](https://img.shields.io/badge/Language-Python_3.12+-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![pgvector](https://img.shields.io/badge/Vector_Search-pgvector-6C63FF?style=flat-square)
+![Groq](https://img.shields.io/badge/LLM-Groq_(Llama--3)-F55036?style=flat-square)
+![SentenceTransformers](https://img.shields.io/badge/Embeddings-SentenceTransformers-FF9900?style=flat-square)
 
 Most LLMs can't answer questions about your specific documents — they either hallucinate or simply don't have the context. Context Engine solves this by building a full RAG (Retrieval-Augmented Generation) pipeline that ingests your documents, stores them as semantic vector embeddings, and retrieves only the most relevant context before passing it to an LLM — so answers are always grounded in your actual content, never fabricated.
 
 ---
 
-## How It Works
+## ⚙️ How It Works
 
 ```
 Upload File → Parse & Chunk → Embed → Store in pgvector
@@ -18,7 +26,7 @@ Two clean endpoints. Upload once, query as many times as you want.
 
 ---
 
-## Features
+## ✨ Features
 
 - **Multi-format ingestion** — PDFs (with batching for large files), plain text, and images (JPG, PNG, GIF, BMP, WEBP, TIFF)
 - **OCR support** — extracts text from scanned PDFs and images using EasyOCR
@@ -30,22 +38,22 @@ Two clean endpoints. Upload once, query as many times as you want.
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Web framework | FastAPI + Uvicorn |
-| Database | PostgreSQL + pgvector extension |
-| ORM & Migrations | SQLAlchemy (asyncpg) + Alembic |
-| Embeddings | SentenceTransformers (`BAAI/bge-base-en-v1.5`) |
-| Document parsing | Docling + EasyOCR |
-| LLM orchestration | LangChain + Groq API |
-| Dependency management | uv |
-| Runtime | Python 3.12+ |
+| **Web Framework** | FastAPI + Uvicorn |
+| **Database** | PostgreSQL + pgvector extension |
+| **ORM & Migrations** | SQLAlchemy (asyncpg) + Alembic |
+| **Embeddings** | SentenceTransformers (`BAAI/bge-base-en-v1.5`) |
+| **Document Parsing** | Docling + EasyOCR |
+| **LLM Orchestration** | LangChain + Groq API |
+| **Dependency Management** | uv |
+| **Runtime** | Python 3.12+ |
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 .
@@ -69,16 +77,16 @@ Two clean endpoints. Upload once, query as many times as you want.
 
 ---
 
-## Setup
+## 🚀 Setup
 
-### Prerequisites
+### 📋 Prerequisites
 
 - Python 3.12+
 - PostgreSQL with the `pgvector` extension installed
 - [uv](https://github.com/astral-sh/uv) (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - A Groq API key from [console.groq.com](https://console.groq.com/keys)
 
-### Installation
+### 📥 Installation
 
 ```bash
 git clone <repository-url>
@@ -86,7 +94,7 @@ cd context-engine
 uv sync
 ```
 
-### Environment Variables
+### 📄 Environment Variables
 
 Create a `.env` file in the root:
 
@@ -104,7 +112,7 @@ GROQ_MODEL=llama-3.3-70b-versatile
 | `GROQ_API_KEY` | Your Groq API key |
 | `GROQ_MODEL` | Groq model ID — recommended: `llama-3.1-8b-instant` or `llama-3.3-70b-versatile` |
 
-### Database Setup
+### 🗄️ Database Setup
 
 ```bash
 # Enable pgvector in your PostgreSQL database
@@ -114,7 +122,7 @@ psql -d your_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
 uv run alembic upgrade head
 ```
 
-### Run
+### ▶️ Run
 
 ```bash
 uv run fastapi dev main.py
@@ -124,7 +132,7 @@ Server runs at `http://localhost:8000`. Interactive API docs at `http://localhos
 
 ---
 
-## API
+## 📡 API
 
 ### `POST /upload-file`
 
@@ -151,13 +159,21 @@ curl -X POST 'http://localhost:8000/upload-file' \
 }
 ```
 
-Save the returned `filename` — you'll need it to query the document.
+> Save the returned `filename` — you'll need it to query the document.
 
 ---
 
 ### `POST /qna`
 
 Queries a previously uploaded document. Retrieves the most relevant chunks via cosine similarity search and generates a grounded answer via the configured LLM.
+
+#### Retrieval Pipeline
+
+1. Embed user query using BGE-base
+2. Perform cosine similarity search in pgvector
+3. Retrieve top-k chunks
+4. Pass retrieved context + user query to LLM
+5. Generate grounded response
 
 **Request** — `application/json`
 
@@ -185,7 +201,7 @@ curl -X POST 'http://localhost:8000/qna' \
 
 ---
 
-## Engineering Notes
+## 🛠️ Engineering Notes
 
 A few non-obvious problems that came up during development:
 
