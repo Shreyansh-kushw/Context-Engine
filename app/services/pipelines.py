@@ -72,7 +72,7 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession):
     """The main ingest data pipeline"""
 
     # getting the filename and filetype
-    filename = filepath.name
+    job_id = filepath.name
     file_ext = filepath.suffix
 
     # calling the proper pipeline based on filetype
@@ -100,7 +100,7 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession):
 
     for chunk, embedding in zip(chunks, embeddings):
         new_chunk_field = Chunks(
-            filename=filename, chunk_text=chunk.text, embedding=embedding
+            job_id=job_id, chunk_text=chunk.text, embedding=embedding
         )
 
         db.add(new_chunk_field)
@@ -117,7 +117,7 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession):
 # Main retrieval pipeline
 
 
-async def retrieval_pipeline(query: str, filename: str, db: AsyncSession):
+async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
     """Main retrieval pipeline"""
 
     # generating embeddings for the query
@@ -126,7 +126,7 @@ async def retrieval_pipeline(query: str, filename: str, db: AsyncSession):
     # getting all the database fields with the given filename.
     results = await db.execute(
         select(Chunks)
-        .where(Chunks.filename == filename)
+        .where(Chunks.job_id == job_id)
         .order_by(Chunks.embedding.cosine_distance(query_embedding))
         .limit(5)
     )

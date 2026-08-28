@@ -11,7 +11,6 @@ from app.schema import QueryRequest
 
 app = FastAPI()
 
-
 @app.post("/upload-file")
 async def upload_file(
     background_tasks: BackgroundTasks,
@@ -20,9 +19,9 @@ async def upload_file(
 ):
     """Endpoint to upload and ingest documents"""
 
-    filename = str(uuid.uuid4().hex)  # creating random filenames.
+    job_id = str(uuid.uuid4().hex)  # creating random job ids.
     filepath = Path(
-        f"upload_files/{filename}{Path(file.filename).suffix}"
+        f"upload_files/{job_id}{Path(file.filename).suffix}"
     )  # creating the relative filepath
 
     with open(filepath, "wb") as f:
@@ -31,7 +30,7 @@ async def upload_file(
 
     background_tasks.add_task(ingestion_pipeline, filepath, db)
 
-    return {"filename": str(filepath.name), "message": "File uploaded successfully"}
+    return {"job_id": str(job_id), "message": "File uploaded successfully"}
 
 @app.post("/qna")
 async def ques_answer(
@@ -40,5 +39,5 @@ async def ques_answer(
 ):
     """Endpoint to generate response for the asked query"""
 
-    response = await retrieval_pipeline(request.query, request.filename, db)
+    response = await retrieval_pipeline(request.query, request.job_id, db)
     return response

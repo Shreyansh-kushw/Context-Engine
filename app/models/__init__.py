@@ -10,9 +10,9 @@ class Chunks(Base):
 
     __tablename__ = "chunks"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    filename: Mapped[str] = mapped_column(
+    job_id: Mapped[str] = mapped_column(
         String, unique=False, nullable=False, index=True
     )
 
