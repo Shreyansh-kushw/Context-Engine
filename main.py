@@ -14,23 +14,25 @@ app = FastAPI()
 @app.post("/upload-file")
 async def upload_file(
     background_tasks: BackgroundTasks,
-    file: Annotated[UploadFile, File(description="File to be analysed.")],
+    files: Annotated[list[UploadFile], File(description="Files to be analysed.")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Endpoint to upload and ingest documents"""
 
     job_id = str(uuid.uuid4().hex)  # creating random job ids.
-    filepath = Path(
-        f"upload_files/{job_id}{Path(file.filename).suffix}"
-    )  # creating the relative filepath
 
-    with open(filepath, "wb") as f:
-        content = await file.read()  # reading the file content
-        f.write(content)  # copying the file content to another file
+    for index, file in enumerate(files):
+        filepath = Path(
+            f"upload_files/{job_id+str(index+1)}{Path(file.filename).suffix}"
+        )  # creating the relative filepath
 
-    background_tasks.add_task(ingestion_pipeline, filepath, db)
+        with open(filepath, "wb") as f:
+            content = await file.read()  # reading the file content
+            f.write(content)  # copying the file content to another file
 
-    return {"job_id": str(job_id), "message": "File uploaded successfully"}
+        background_tasks.add_task(ingestion_pipeline, filepath, db)
+
+    return {"job_id": str(job_id), "message": "Files uploaded successfully"}
 
 @app.post("/qna")
 async def ques_answer(
