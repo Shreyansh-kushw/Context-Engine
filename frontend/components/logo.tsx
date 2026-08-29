@@ -1,15 +1,18 @@
+import Link from 'next/link'
 import { Boxes } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Logo({
   className,
   showText = true,
+  href = '/',
 }: {
   className?: string
   showText?: boolean
+  href?: string
 }) {
-  return (
-    <div className={cn('flex items-center gap-2.5', className)}>
+  const content = (
+    <div className={cn('flex items-center gap-2.5 transition-opacity hover:opacity-90', className)}>
       <span className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/25">
         <Boxes className="size-5 text-white" />
       </span>
@@ -20,4 +23,17 @@ export function Logo({
       )}
     </div>
   )
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="inline-flex items-center rounded-xl outline-none transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {content}
+      </Link>
+    )
+  }
+
+  return content
 }

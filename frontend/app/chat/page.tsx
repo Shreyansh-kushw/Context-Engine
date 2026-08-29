@@ -121,30 +121,32 @@ export default function ChatPage() {
     <div className="flex h-dvh flex-col">
       <ChatHeader jobId={jobId} onNewSession={newSession} />
 
-      <div ref={scrollRef} className="scrollbar-thin flex-1 overflow-y-auto">
-        {hasMessages ? (
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
-            {messages.map((m, i) => (
-              <MessageBubble
-                key={m.id}
-                message={m}
-                onRetry={
-                  m.error && i === messages.length - 1 ? retry : undefined
-                }
-              />
-            ))}
-            {loading && <ThinkingBubble />}
+      {hasMessages ? (
+        <>
+          <div ref={scrollRef} className="scrollbar-thin flex-1 overflow-y-auto">
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+              {messages.map((m, i) => (
+                <MessageBubble
+                  key={m.id}
+                  message={m}
+                  onRetry={
+                    m.error && i === messages.length - 1 ? retry : undefined
+                  }
+                />
+              ))}
+              {loading && <ThinkingBubble />}
+            </div>
           </div>
-        ) : (
-          <div className="mx-auto flex h-full w-full max-w-3xl flex-col">
-            <EmptyState onPick={(prompt) => send(prompt)} />
-          </div>
-        )}
-      </div>
 
-      <div className="border-t border-border bg-background/80 backdrop-blur-xl">
-        <ChatInput onSend={send} disabled={loading} />
-      </div>
+          <div className="border-t border-border bg-background/80 backdrop-blur-xl">
+            <ChatInput onSend={send} disabled={loading} />
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-1 flex-col overflow-y-auto">
+          <EmptyState onSend={send} disabled={loading} />
+        </div>
+      )}
     </div>
   )
 }
