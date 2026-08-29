@@ -1,0 +1,9 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/qna/route": "/api/qna",
+  "/api/upload-files/route": "/api/upload-files",
+  "/chat/page": "/chat",
+  "/page": "/",
+  "/upload/page": "/upload"
+}
