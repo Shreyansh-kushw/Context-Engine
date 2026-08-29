@@ -5,11 +5,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import Field
 import uuid
 
+from fastapi.middleware.cors import CORSMiddleware
 from app.services.pipelines import ingestion_pipeline, retrieval_pipeline
 from app.database import get_db
 from app.schema import QueryRequest
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/upload-files")
 async def upload_file(
