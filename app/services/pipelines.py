@@ -4,12 +4,14 @@ from docling.datamodel.pipeline_options import (
     PdfPipelineOptions,
     EasyOcrOptions,
 )
+from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import fitz
 
-from app.services.chunker import generate_chunks
+from app.services.chunker import generate_chunks, chunker
 from app.services import embedder
 from app.models import Chunks
 from app.services.llm_service import generate_response
@@ -28,7 +30,10 @@ def pdf_pipeline(filepath: Path):
     # initializing the docling converter
     converter = DocumentConverter(
         format_options={
-            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+            InputFormat.PDF: PdfFormatOption(
+                pipeline_options=pipeline_options,
+                backend=PyPdfiumDocumentBackend,  # Using PyPdfiumDocumentBackend to fix utf-8 codec error
+            )
         }
     )
 
@@ -68,11 +73,10 @@ def image_and_text_pipeline(filepath: Path):
 # Main data ingestion pipeline
 
 
-async def ingestion_pipeline(filepath: Path, db: AsyncSession):
+async def ingestion_pipeline(filepath: Path, db: AsyncSession, job_id: str):
     """The main ingest data pipeline"""
 
     # getting the filename and filetype
-    job_id = filepath.name
     file_ext = filepath.suffix
 
     # calling the proper pipeline based on filetype
@@ -96,11 +100,11 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession):
         raise ValueError(f"Unsupported file type: {file_ext}")
 
     # generating embeddings and adding to the table in database
-    embeddings = embedder.generate_embeddings([chunk.text for chunk in chunks])
+    embeddings = embedder.generate_embeddings([chunker.contextualize(chunk) for chunk in chunks])
 
     for chunk, embedding in zip(chunks, embeddings):
         new_chunk_field = Chunks(
-            job_id=job_id, chunk_text=chunk.text, embedding=embedding
+            job_id=job_id, chunk_text=chunker.contextualize(chunk), embedding=embedding
         )
 
         db.add(new_chunk_field)
