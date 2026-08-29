@@ -11,7 +11,7 @@ from app.schema import QueryRequest
 
 app = FastAPI()
 
-@app.post("/upload-file")
+@app.post("/upload-files")
 async def upload_file(
     background_tasks: BackgroundTasks,
     files: Annotated[list[UploadFile], File(description="Files to be analysed.")],
@@ -30,7 +30,7 @@ async def upload_file(
             content = await file.read()  # reading the file content
             f.write(content)  # copying the file content to another file
 
-        background_tasks.add_task(ingestion_pipeline, filepath, db)
+        background_tasks.add_task(ingestion_pipeline, filepath, db, job_id)
 
     return {"job_id": str(job_id), "message": "Files uploaded successfully"}
 
