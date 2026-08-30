@@ -18,6 +18,7 @@ export type JobStatusType =
   | 'completed'
   | 'done'
   | 'ready'
+  | 'success'
   | 'failed'
   | 'error'
 
@@ -57,7 +58,7 @@ export async function uploadFiles(files: File[]): Promise<UploadResponse> {
 /**
  * Polls the backend status endpoint for a given jobId.
  * Handles different backend status routes (/status/{jobId}, /status?job_id=..., /job-status/{jobId})
- * and normalizes the payload.
+ * and handles both raw string returns ("Processing", "Success", "Failed") and JSON object responses.
  */
 export async function checkJobStatus(jobId: string): Promise<JobStatusResponse> {
   const encodedId = encodeURIComponent(jobId)
@@ -88,8 +89,13 @@ export async function checkJobStatus(jobId: string): Promise<JobStatusResponse> 
     let errorMsg = `Status check failed (${res.status})`
     try {
       const errData = await res.json()
-      if (errData.detail) errorMsg = errData.detail
-      else if (errData.message) errorMsg = errData.message
+      if (typeof errData === 'string') {
+        errorMsg = errData
+      } else if (errData.detail) {
+        errorMsg = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail)
+      } else if (errData.message) {
+        errorMsg = errData.message
+      }
     } catch {
       // Ignore JSON parse error
     }
@@ -98,28 +104,48 @@ export async function checkJobStatus(jobId: string): Promise<JobStatusResponse> 
 
   const data = await res.json()
 
-  // Normalize possible backend schemas:
-  // e.g. { status: "completed" }, { state: "SUCCESS" }, { is_processing: false, completed: true }
-  let status: string = data.status || data.state || ''
-  
-  if (!status) {
-    if (data.completed === true || data.is_completed === true || data.ready === true) {
-      status = 'completed'
-    } else if (data.failed === true || data.error) {
-      status = 'failed'
-    } else {
-      status = 'processing'
+  // 1. Backend returns a raw string (e.g. "Processing", "Success", "Failed")
+  if (typeof data === 'string') {
+    const lower = data.toLowerCase().trim()
+    if (lower === 'success' || lower === 'completed' || lower === 'done' || lower === 'ready') {
+      return { status: 'completed', message: 'Indexing complete' }
     }
+    if (lower === 'failed' || lower === 'error') {
+      return { status: 'failed', error: 'Backend reported processing failure' }
+    }
+    return { status: 'processing', message: 'Processing document...' }
+  }
+
+  // 2. Backend returns null or empty
+  if (!data) {
+    return { status: 'processing', message: 'Waiting for task to register...' }
+  }
+
+  // 3. Backend returns an object (e.g. { "status": "Success" } or { "status": "Processing" })
+  let rawStatus = (data.status || data.state || '').toString().toLowerCase().trim()
+
+  if (!rawStatus) {
+    if (data.completed === true || data.is_completed === true || data.ready === true || data.success === true) {
+      rawStatus = 'completed'
+    } else if (data.failed === true || data.error) {
+      rawStatus = 'failed'
+    } else {
+      rawStatus = 'processing'
+    }
+  } else if (rawStatus === 'success' || rawStatus === 'done' || rawStatus === 'ready') {
+    rawStatus = 'completed'
+  } else if (rawStatus === 'error') {
+    rawStatus = 'failed'
   }
 
   return {
-    status: status.toLowerCase(),
-    message: data.message || data.detail || '',
+    status: rawStatus,
+    message: data.message || data.detail || (rawStatus === 'completed' ? 'Indexing complete' : 'Processing document...'),
     progress: typeof data.progress === 'number' ? data.progress : undefined,
     step: data.step,
     total_chunks: data.total_chunks ?? data.chunks_count,
-    detail: data.detail,
-    error: data.error,
+    detail: typeof data.detail === 'string' ? data.detail : undefined,
+    error: typeof data.error === 'string' ? data.error : (rawStatus === 'failed' ? (data.detail || 'Processing failed') : undefined),
   }
 }
 

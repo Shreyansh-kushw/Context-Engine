@@ -9,9 +9,12 @@ import uuid
 from app.services.pipelines import ingestion_pipeline, retrieval_pipeline
 from app.database import get_db
 from app.schema import QueryRequest
-from app.services.s3_client import s3, BUCKET_NAME
 
 app = FastAPI()
+
+jobs = {}
+UPLOAD_DIR = Path("upload_files")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,46 +33,20 @@ async def upload_file(
     """Endpoint to upload and ingest documents"""
 
     job_id = str(uuid.uuid4().hex)  # creating random job ids.
+    jobs[job_id] = {"status": "Processing"}
 
     for index, file in enumerate(files):
-    #     filepath = Path(
-    #         f"upload_files/{job_id+str(index+1)}{Path(file.filename).suffix}"
-    #     )  # creating the relative filepath
+        try:
+            filepath = UPLOAD_DIR / f"{job_id}{str(index+1)}{Path(file.filename).suffix}"
 
-    #     with open(filepath, "wb") as f:
-    #         content = await file.read()  # reading the file content
-    #         f.write(content)  # copying the file content to another file
+            content = await file.read()
+            with open(filepath, "wb") as f:
+                f.write(content)
 
-    #     background_tasks.add_task(ingestion_pipeline, filepath, db, job_id)
-
-        try: 
-
-            s3_key = f"{job_id+str(index+1)}{Path(file.filename).suffix}"
-
-            s3.upload_fileobj(
-                file.file,
-                BUCKET_NAME,
-                s3_key,
-                ExtraArgs={
-                    "ContentType": file.content_type,
-                },
-            )
-
-            filename = Path(s3_key).name
-
-            with tempfile.TemporaryDirectory() as tmpdir:
-
-                local_path = Path(tmpdir) / filename
-
-                s3.download_file(
-                    BUCKET_NAME,
-                    s3_key,
-                    str(local_path),
-                )
-
-                background_tasks.add_task(ingestion_pipeline, local_path, db, job_id)
+            background_tasks.add_task(ingestion_pipeline, filepath, db, job_id, jobs)
 
         except Exception as e:
+            jobs[job_id] = {"status": "Failed"}
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     return {"job_id": str(job_id), "message": "Files uploaded successfully"}
@@ -83,3 +60,10 @@ async def ques_answer(
 
     response = await retrieval_pipeline(request.query, request.job_id, db)
     return response
+
+@app.get("/status/{job_id}")
+async def get_status(job_id: str):
+    job = jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return job.get("status")

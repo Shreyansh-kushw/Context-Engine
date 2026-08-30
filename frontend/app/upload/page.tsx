@@ -224,7 +224,6 @@ export default function UploadPage() {
             status={processStatus}
             message={statusMessage}
             progress={statusProgress}
-            step={statusStep}
             error={errorMessage}
             onRetry={() => activeJobId && startPolling(activeJobId)}
             onCancel={handleCancelOrReset}

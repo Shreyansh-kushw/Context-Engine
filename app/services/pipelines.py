@@ -19,7 +19,7 @@ from app.services.llm_service import generate_response
 # Helper Pipelines
 
 
-def pdf_pipeline(filepath: Path):
+def pdf_pipeline(filepath: Path,):
     """Processes a PDF file and returns the chunks of the extracted text"""
 
     # initializing the PDF pipeline
@@ -73,49 +73,61 @@ def image_and_text_pipeline(filepath: Path):
 # Main data ingestion pipeline
 
 
-async def ingestion_pipeline(filepath: Path, db: AsyncSession, job_id: str):
+async def ingestion_pipeline(filepath: Path, db: AsyncSession, job_id: str, jobs: dict):
     """The main ingest data pipeline"""
 
-    # getting the filename and filetype
-    file_ext = filepath.suffix
-
-    # calling the proper pipeline based on filetype
-    if file_ext.lower() == ".pdf":  # pdf pipeline
-        chunks = pdf_pipeline(filepath)
-
-    elif file_ext.lower() in {
-        ".txt",
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".bmp",
-        ".webp",
-        ".tiff",
-        ".tif",
-    }:  # image and text pipeline
-        chunks = image_and_text_pipeline(filepath)
-
-    else:  # unsupported file type
-        raise ValueError(f"Unsupported file type: {file_ext}")
-
-    # generating embeddings and adding to the table in database
-    embeddings = embedder.generate_embeddings([chunker.contextualize(chunk) for chunk in chunks])
-
-    for chunk, embedding in zip(chunks, embeddings):
-        new_chunk_field = Chunks(
-            job_id=job_id, chunk_text=chunker.contextualize(chunk), embedding=embedding
-        )
-
-        db.add(new_chunk_field)
-
     try:
-        await db.commit()
-        print("Processing Complete!")
+        # getting the filename and filetype
+        file_ext = filepath.suffix
+
+        # calling the proper pipeline based on filetype
+        if file_ext.lower() == ".pdf":  # pdf pipeline
+            chunks = pdf_pipeline(filepath)
+
+        elif file_ext.lower() in {
+            ".txt",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".webp",
+            ".tiff",
+            ".tif",
+        }:  # image and text pipeline
+            chunks = image_and_text_pipeline(filepath)
+
+        else:  # unsupported file type
+            jobs[job_id]["status"] = "Failed"
+            raise ValueError(f"Unsupported file type: {file_ext}")
+
+        # generating embeddings and adding to the table in database
+        embeddings = embedder.generate_embeddings([chunker.contextualize(chunk) for chunk in chunks])
+
+        for chunk, embedding in zip(chunks, embeddings):
+            new_chunk_field = Chunks(
+                job_id=job_id, chunk_text=chunker.contextualize(chunk), embedding=embedding
+            )
+
+            db.add(new_chunk_field)
+
+        try:
+            await db.commit()
+            jobs[job_id]["status"] = "Success"
+
+        except Exception:
+            jobs[job_id]["status"] = "Failed"
+            await db.rollback()
+            raise
 
     except Exception:
-        await db.rollback()
-        raise Exception
+        jobs[job_id]["status"] = "Failed"
+        raise
+
+    finally:
+        # Clean up local file from upload_files directory
+        if filepath.exists():
+            filepath.unlink(missing_ok=True)
 
 
 # Main retrieval pipeline
@@ -136,6 +148,11 @@ async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
     )
 
     chunk_fields = results.scalars().all()
+
+    if not chunk_fields:
+
+        raise ValueError("Job ID not")
+
     chunk_texts = [chunk.chunk_text for chunk in chunk_fields]
 
     response = await generate_response(chunks=chunk_texts, question=query)
