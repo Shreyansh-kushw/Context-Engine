@@ -1,11 +1,15 @@
+# app/services/s3.py
+
 import boto3
+import os
 
-# Initialize the low-level S3 client
-s3_client = boto3.client('s3')
+from app.utils.config import settings
 
-# Example: List all your S3 buckets
-response = s3_client.list_buckets()
+s3 = boto3.client(
+    "s3",
+    region_name=settings.aws_region,
+    aws_access_key_id=settings.aws_access_key_id,
+    aws_secret_access_key=settings.aws_secret_access_key,
+)
 
-print("Your buckets:")
-for bucket in response.get('Buckets', []):
-    print(f" - {bucket['Name']}")
+BUCKET_NAME = settings.s3_bucket_name
