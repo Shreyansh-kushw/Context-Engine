@@ -26,6 +26,7 @@ class Chunks(Base):
         nullable=False,
     )
 
+
 class Jobs(Base):
     __tablename__ = "jobs"
     job_id: Mapped[str] = mapped_column(String, primary_key=True)

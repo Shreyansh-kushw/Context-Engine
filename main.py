@@ -8,23 +8,23 @@ from fastapi import (
     FastAPI,
     File,
     HTTPException,
+    Request,
     UploadFile,
     status,
-    Request
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Jobs
 from app.schema import QueryRequest
 from app.services.pipelines import ingestion_pipeline, retrieval_pipeline
-from app.utils.auth import verify_api_key, get_job_or_403, get_owner_token
-from app.utils.file_validator import validate_upload, MAX_FILE_BYTES
+from app.utils.auth import get_job_or_403, get_owner_token, verify_api_key
+from app.utils.file_validator import MAX_FILE_BYTES, validate_upload
 
 app = FastAPI()
 
@@ -44,24 +44,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.middleware("http")
 async def limit_request_size(request: Request, call_next):
     if request.method == "POST":
         content_length = request.headers.get("content-length")
 
         if content_length and int(content_length) > MAX_FILE_BYTES:
-
             # NOTE: We cannot raise HTTPExceptions inside middleware endpoints
-            # It will crash the fastapi exception handlers. 
+            # It will crash the fastapi exception handlers.
             # instead we need to return JSONResponse manually for middleware endpoints.
             # raise HTTPException(status_code=status.HTTP_413_PAYLOAD_TOO_LARGE, detail="File too large. (MAX: 25MB)")
 
             return JSONResponse(
                 status_code=status.HTTP_413_PAYLOAD_TOO_LARGE,
-                content={"detail": "File too large. (MAX: 25MB)"}
+                content={"detail": "File too large. (MAX: 25MB)"},
             )
 
     return await call_next(request)
+
 
 @app.post("/upload-files")
 @limiter.limit("5/minute")
@@ -78,16 +79,15 @@ async def upload_file(
     job_id = secrets.token_urlsafe(32)  # creating random job ids.
     # jobs[job_id] = {"status": "Processing"}
 
-    new_job = Jobs(job_id=job_id,owner_token=owner_token)
+    new_job = Jobs(job_id=job_id, owner_token=owner_token)
 
     try:
         db.add(new_job)
         await db.commit()
-    
+
     except Exception as e:
-        
         await db.rollback()
-        
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
@@ -110,7 +110,7 @@ async def upload_file(
 
         except Exception as e:
             # raising standard 500 error if any unknown exceptions are encountered.
-            
+
             # jobs[job_id] = {"status": "Failed"}
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -145,5 +145,5 @@ async def get_status(
     owner_token: Annotated[str, Depends(get_owner_token)],
 ):
     job = await get_job_or_403(job_id, owner_token, db)
-    
+
     return job.status
