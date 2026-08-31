@@ -10,6 +10,7 @@ from fastapi import (
     HTTPException,
     UploadFile,
     status,
+    Request
 )
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,7 @@ from app.models import Jobs
 from app.schema import QueryRequest
 from app.services.pipelines import ingestion_pipeline, retrieval_pipeline
 from app.utils.auth import verify_api_key, get_job_or_403, get_owner_token
+from app.utils.file_validator import validate_upload, MAX_FILE_BYTES
 
 app = FastAPI()
 
@@ -39,6 +41,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    if request.method == "POST":
+        content_length = request.headers.get("content-length")
+
+        if content_length and int(content_length) > MAX_FILE_BYTES:
+            raise HTTPException(status_code=status.HTTP_413_PAYLOAD_TOO_LARGE, detail="File too large. (MAX: 25MB)")
+
+    return await call_next(request)
 
 @app.post("/upload-files")
 @limiter.limit("5/minute")
@@ -58,9 +69,11 @@ async def upload_file(
 
     for index, file in enumerate(files):
         try:
-            filepath = UPLOAD_DIR / f"{job_id}{index + 1!s}{Path(file.filename).suffix}"
-
+            filepath = UPLOAD_DIR / f"{job_id}{index + 1}{Path(file.filename).suffix}"
+            filename = file.filename
             content = await file.read()
+            validate_upload(content, filename)
+
             with open(filepath, "wb") as f:
                 f.write(content)
 

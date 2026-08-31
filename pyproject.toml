@@ -16,6 +16,7 @@ dependencies = [
     "pgvector>=0.4.2",
     "psycopg[binary]>=3.3.4",
     "pymupdf>=1.27.2.3",
+    "python-magic>=0.4.27",
     "python-multipart>=0.0.32",
     "sentence-transformers>=5.5.1",
     "slowapi>=0.1.10",
