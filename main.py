@@ -13,6 +13,8 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_db
 from app.models import Jobs
@@ -26,6 +28,9 @@ jobs = {}
 UPLOAD_DIR = Path("upload_files")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://context-engine-alpha.vercel.app", "http://localhost:3000"],
@@ -36,6 +41,7 @@ app.add_middleware(
 
 
 @app.post("/upload-files")
+@limiter.limit("5/minute")
 async def upload_file(
     background_tasks: BackgroundTasks,
     files: Annotated[list[UploadFile], File(description="Files to be analysed.")],
@@ -70,6 +76,7 @@ async def upload_file(
 
 
 @app.post("/qna")
+@limiter.limit("10/minute")
 async def ques_answer(
     request: QueryRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
