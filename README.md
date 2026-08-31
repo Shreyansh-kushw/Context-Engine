@@ -39,7 +39,7 @@
 | **SQLAlchemy (Async)** | Modern ORM with `Mapped` typed columns | `>=2.0.50` |
 | **Docling & EasyOCR** | Multi-format document parser, structure-aware chunker, and OCR | `>=2.100.0` / `>=1.7.2` |
 | **SentenceTransformers** | Local 768-dim embedding generation (`BAAI/bge-base-en-v1.5`) | `>=5.5.1` |
-| **LangChain & Groq** | LLM orchestration and ultra-fast inference (`llama-3.3-70b-versatile`) | `>=1.3.9` / `>=1.1.3` |
+| **LangChain & Groq** | LLM orchestration and ultra-fast inference (`openai/gpt-oss-120b`) | `>=1.3.9` / `>=1.1.3` |
 | **Alembic** | Database migrations management | `>=1.18.4` |
 
 ### Frontend
