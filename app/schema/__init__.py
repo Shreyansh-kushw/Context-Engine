@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class QueryRequest(BaseModel):
     """Class for request body of qna endpoint"""
 

@@ -1,6 +1,6 @@
 from docling.chunking import HybridChunker
-from transformers import AutoTokenizer
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+from transformers import AutoTokenizer
 
 EMBED_MODEL_ID = "BAAI/bge-base-en-v1.5"
 MAX_TOKENS = 512

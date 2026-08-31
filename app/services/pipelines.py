@@ -1,25 +1,28 @@
-from docling.document_converter import DocumentConverter, PdfFormatOption
+from pathlib import Path
+
+import fitz
+from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import (
-    PdfPipelineOptions,
     EasyOcrOptions,
+    PdfPipelineOptions,
 )
-from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
-
-from pathlib import Path
-from sqlalchemy.ext.asyncio import AsyncSession
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from fastapi import HTTPException, status
 from sqlalchemy import select
-import fitz
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.chunker import generate_chunks, chunker
-from app.services import embedder
 from app.models import Chunks
+from app.services import embedder
+from app.services.chunker import chunker, generate_chunks
 from app.services.llm_service import generate_response
 
 # Helper Pipelines
 
 
-def pdf_pipeline(filepath: Path,):
+def pdf_pipeline(
+    filepath: Path,
+):
     """Processes a PDF file and returns the chunks of the extracted text"""
 
     # initializing the PDF pipeline
@@ -102,11 +105,15 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession, job_id: str, jobs
             raise ValueError(f"Unsupported file type: {file_ext}")
 
         # generating embeddings and adding to the table in database
-        embeddings = embedder.generate_embeddings([chunker.contextualize(chunk) for chunk in chunks])
+        embeddings = embedder.generate_embeddings(
+            [chunker.contextualize(chunk) for chunk in chunks]
+        )
 
         for chunk, embedding in zip(chunks, embeddings):
             new_chunk_field = Chunks(
-                job_id=job_id, chunk_text=chunker.contextualize(chunk), embedding=embedding
+                job_id=job_id,
+                chunk_text=chunker.contextualize(chunk),
+                embedding=embedding,
             )
 
             db.add(new_chunk_field)
@@ -150,8 +157,9 @@ async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
     chunk_fields = results.scalars().all()
 
     if not chunk_fields:
-
-        raise ValueError("Job ID not")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job ID not found!"
+        )
 
     chunk_texts = [chunk.chunk_text for chunk in chunk_fields]
 

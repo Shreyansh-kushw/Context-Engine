@@ -5,12 +5,11 @@ model = SentenceTransformer("BAAI/bge-base-en-v1.5")
 
 def generate_embeddings(chunk: str | list[str]):
     """Generates and returns a list of embeddings of all the chunks.
-    Args: 
+    Args:
         str | list[str]
-    Output: 
+    Output:
         str -> embedding
         list[str] -> list of embeddings
     """
-    
 
     return model.encode(chunk)
