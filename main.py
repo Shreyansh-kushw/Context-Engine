@@ -79,8 +79,18 @@ async def upload_file(
     # jobs[job_id] = {"status": "Processing"}
 
     new_job = Jobs(job_id=job_id,owner_token=owner_token)
-    db.add(new_job)
-    await db.commit()
+
+    try:
+        db.add(new_job)
+        await db.commit()
+    
+    except Exception as e:
+        
+        await db.rollback()
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
     for index, file in enumerate(files):
         try:
