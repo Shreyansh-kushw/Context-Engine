@@ -25,3 +25,9 @@ class Chunks(Base):
         Vector(768),
         nullable=False,
     )
+
+class Jobs(Base):
+    __tablename__ = "jobs"
+    job_id: Mapped[str] = mapped_column(String, primary_key=True)
+    owner_token: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    status: ...

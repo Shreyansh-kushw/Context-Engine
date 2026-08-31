@@ -221,6 +221,7 @@ __marimo__/
 # Custom
 GEMINI.md
 .gemini
+TO_FIX.MD
 
 # Next.js gitignore
 node_modules/
