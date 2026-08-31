@@ -30,4 +30,4 @@ class Jobs(Base):
     __tablename__ = "jobs"
     job_id: Mapped[str] = mapped_column(String, primary_key=True)
     owner_token: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    status: ...
+    status: Mapped[str] = mapped_column(String, nullable=False, default="Processing")

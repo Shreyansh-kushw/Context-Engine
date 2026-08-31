@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     database_url_alembic: str
     groq_api_key: str
     groq_model: str
+    api_key: str
 
 
 settings = Settings()

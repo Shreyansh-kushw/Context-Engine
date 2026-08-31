@@ -13,9 +13,11 @@ from fastapi import (
     Request
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from slowapi import Limiter
+from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
+from alowapi.errors import RateLimitExceeded
 
 from app.database import get_db
 from app.models import Jobs
@@ -32,6 +34,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,13 +50,23 @@ async def limit_request_size(request: Request, call_next):
         content_length = request.headers.get("content-length")
 
         if content_length and int(content_length) > MAX_FILE_BYTES:
-            raise HTTPException(status_code=status.HTTP_413_PAYLOAD_TOO_LARGE, detail="File too large. (MAX: 25MB)")
+
+            # NOTE: We cannot raise HTTPExceptions inside middleware endpoints
+            # It will crash the fastapi exception handlers. 
+            # instead we need to return JSONResponse manually for middleware endpoints.
+            # raise HTTPException(status_code=status.HTTP_413_PAYLOAD_TOO_LARGE, detail="File too large. (MAX: 25MB)")
+
+            return JSONResponse(
+                status_code=status.HTTP_413_PAYLOAD_TOO_LARGE,
+                content={"detail": "File too large. (MAX: 25MB)"}
+            )
 
     return await call_next(request)
 
 @app.post("/upload-files")
 @limiter.limit("5/minute")
 async def upload_file(
+    request: Request,
     background_tasks: BackgroundTasks,
     files: Annotated[list[UploadFile], File(description="Files to be analysed.")],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -66,6 +79,7 @@ async def upload_file(
     # jobs[job_id] = {"status": "Processing"}
 
     new_job = Jobs(job_id=job_id,owner_token=owner_token)
+    db.add(new_job)
 
     for index, file in enumerate(files):
         try:
@@ -78,8 +92,15 @@ async def upload_file(
                 f.write(content)
 
             background_tasks.add_task(ingestion_pipeline, filepath, db, job_id, jobs)
+            await db.commit()
+
+        except HTTPException:
+            # raise any HTTPException if encountered.
+            raise
 
         except Exception as e:
+            # raising standard 500 error if any unknown exceptions are encountered.
+            
             # jobs[job_id] = {"status": "Failed"}
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -91,25 +112,27 @@ async def upload_file(
 @app.post("/qna")
 @limiter.limit("10/minute")
 async def ques_answer(
-    request: QueryRequest,
+    request: Request,
+    query_request: QueryRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     api_key: Annotated[str, Depends(verify_api_key)],
     owner_token: Annotated[str, Depends(get_owner_token)],
 ):
     """Endpoint to generate response for the asked query"""
 
-    job_id = get_job_or_403(request.job_id, owner_token, db).job_id
+    job_id = await get_job_or_403(query_request.job_id, owner_token, db).job_id
 
-    response = await retrieval_pipeline(request.query, job_id, db)
+    response = await retrieval_pipeline(query_request.query, job_id, db)
     return response
 
 
 @app.get("/status/{job_id}")
 async def get_status(
     job_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
     api_key: Annotated[str, Depends(verify_api_key)],
     owner_token: Annotated[str, Depends(get_owner_token)],
 ):
-    job = get_job_or_403(request.job_id, owner_token, db)
+    job = await get_job_or_403(job_id, owner_token, db)
     
     return job.status

@@ -1,10 +1,11 @@
-import os
 import secrets
 from typing import Annotated
-
 from fastapi import APIKeyHeader, Depends, HTTPException, status
 
-API_KEY = os.getenv("API_KEY")
+from app.models import Jobs
+from app.utils.config import settings
+
+API_KEY = settings.api_key
 
 api_key_header = APIKeyHeader(name="X-API-KEY", auto_error = True)
 owner_token = APIKeyHeader(name= "X-OWNER-TOKEN", auto_error= True)
