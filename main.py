@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
-from alowapi.errors import RateLimitExceeded
+from slowapi.errors import RateLimitExceeded
 
 from app.database import get_db
 from app.models import Jobs
@@ -80,6 +80,7 @@ async def upload_file(
 
     new_job = Jobs(job_id=job_id,owner_token=owner_token)
     db.add(new_job)
+    await db.commit()
 
     for index, file in enumerate(files):
         try:
@@ -92,7 +93,6 @@ async def upload_file(
                 f.write(content)
 
             background_tasks.add_task(ingestion_pipeline, filepath, db, job_id, jobs)
-            await db.commit()
 
         except HTTPException:
             # raise any HTTPException if encountered.
@@ -120,7 +120,8 @@ async def ques_answer(
 ):
     """Endpoint to generate response for the asked query"""
 
-    job_id = await get_job_or_403(query_request.job_id, owner_token, db).job_id
+    job = await get_job_or_403(query_request.job_id, owner_token, db)
+    job_id = job.job_id
 
     response = await retrieval_pipeline(query_request.query, job_id, db)
     return response
