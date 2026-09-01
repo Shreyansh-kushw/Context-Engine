@@ -9,13 +9,14 @@ from docling.datamodel.pipeline_options import (
 )
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Chunks
 from app.services import embedder
 from app.services.chunker import chunker, generate_chunks
 from app.services.llm_service import generate_response
+from app.utils.retrieval_utils import reciprocal_rank_fusion
 
 # Helper Pipelines
 
@@ -151,21 +152,43 @@ async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
     query_embedding = embedder.generate_embeddings(query)
 
     # getting all the database fields with the given filename.
-    results = await db.execute(
+    vector_search = await db.execute(
         select(Chunks)
         .where(Chunks.job_id == job_id)
         .order_by(Chunks.embedding.cosine_distance(query_embedding))
-        .limit(5)
+        .limit(20)
     )
 
-    chunk_fields = results.scalars().all()
+    vector_search_results = vector_search.scalars().all()
 
-    if not chunk_fields:
+    keyword_search = await db.execute(
+        select(chunks)
+        .where(Chunk.job_id == job_id)
+        .where(Chunks.chunk_tsv.op("@@")(
+            func.websearch_to_tsquery("english", query)
+        ))
+        .order_by(
+            func.ts_rank_cd(
+                Chunks.chunk_tsv,
+                func.websearch_to_tsquery("english", query)
+            ).desc()
+        )
+        .limit(20)
+    )
+
+    keyword_search_results = keyword_search.scalars().all()
+
+    fused_chunks = reciprocal_rank_fusion([vector_search_results, keyword_search_results])
+
+    if not fused_chunks:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Job ID not found!"
         )
+    
+    # Taking the top 5 chunks
+    top_chunks = fused_chunks[:5]
 
-    chunk_texts = [chunk.chunk_text for chunk in chunk_fields]
+    chunk_texts = [chunk.chunk_text for chunk in top_chunks]
 
     response = await generate_response(chunks=chunk_texts, question=query)
     return response
