@@ -1,6 +1,8 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from app.utils.config import settings
 
 llm = ChatGroq(model=settings.groq_model, api_key=settings.groq_api_key)
@@ -19,7 +21,7 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8))
 async def generate_response(
     chunks: list[str],
     question: str,
