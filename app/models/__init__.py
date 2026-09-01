@@ -36,7 +36,7 @@ class Chunks(Base):
     # creating the TSVECTOR column
     chunk_tsv: Mapped[TSVECTOR] = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('english', chunk_text)", persistent=True),
+        Computed("to_tsvector('english', chunk_text)", persisted=True),
         nullable=True,
     )
 
