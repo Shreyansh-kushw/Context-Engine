@@ -46,6 +46,6 @@ async def generate_response(
     return {
         "answer": response.content,
         "sources": [
-            {"filename": c.source_filename, "page": c.page_number} for c in chunks
+            {"filename": c.source_filename} for c in chunks
         ],
     }

@@ -157,7 +157,8 @@ async def ingestion_pipeline(
         async with AsyncSessionLocal() as db:
             job = await db.execute(
                 select(Jobs).where(Jobs.job_id==job_id)
-            ).scalars().first()
+            )
+            job = job.scalars().first()
 
             job.succeeded += 1
 

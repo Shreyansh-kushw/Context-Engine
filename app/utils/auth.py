@@ -1,7 +1,8 @@
 import secrets
 from typing import Annotated
 
-from fastapi import APIKeyHeader, Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status
+from fastapi.security import APIKeyHeader
 
 from app.models import Jobs
 from app.utils.config import settings
