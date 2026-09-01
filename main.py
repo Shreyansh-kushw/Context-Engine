@@ -1,4 +1,5 @@
 import secrets
+import aiofiles
 from pathlib import Path
 from typing import Annotated
 
@@ -102,8 +103,8 @@ async def upload_file(
             validate_upload(content, filename)
             filepath = UPLOAD_DIR / f"{job_id}{index + 1}{Path(file.filename).suffix}"
 
-            with open(filepath, "wb") as f:
-                f.write(content)
+            async with aiofiles.open(filepath, mode="wb") as f:
+                await f.write(content)
 
             background_tasks.add_task(ingestion_pipeline, filepath, db, job_id, jobs)
 
