@@ -17,6 +17,7 @@ from app.services import embedder
 from app.services.chunker import chunker, generate_chunks
 from app.services.llm_service import generate_response
 from app.utils.retrieval_utils import reciprocal_rank_fusion
+from app.services.reranker_service import rerank
 
 # Helper Pipelines
 
@@ -186,7 +187,7 @@ async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
         )
     
     # Taking the top 5 chunks
-    top_chunks = fused_chunks[:5]
+    top_chunks = rerank(fused_chunks)
 
     chunk_texts = [chunk.chunk_text for chunk in top_chunks]
 
