@@ -60,10 +60,15 @@ export default function ChatPage() {
       setLoading(true)
 
       try {
-        const answer = await askQuestion(query, jobId)
+        const response = await askQuestion(query, jobId)
         setMessages((prev) => [
           ...prev,
-          { id: `a-${Date.now()}`, role: 'assistant', content: answer },
+          {
+            id: `a-${Date.now()}`,
+            role: 'assistant',
+            content: response.answer,
+            sources: response.sources,
+          },
         ])
       } catch (err) {
         toast({

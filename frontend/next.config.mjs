@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    API_KEY: process.env.API_KEY,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -9,3 +12,4 @@ const nextConfig = {
 }
 
 export default nextConfig
+

@@ -23,9 +23,32 @@ export function deleteCookie(name: string) {
 }
 
 export const JOB_COOKIE = 'context_job_id'
+export const OWNER_TOKEN_COOKIE = 'context_owner_token'
+
+export function generateOwnerToken(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `owner_${crypto.randomUUID().replace(/-/g, '')}`
+  }
+  return `owner_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`
+}
+
+export function getOwnerToken(): string | null {
+  return getCookie(OWNER_TOKEN_COOKIE)
+}
+
+export function getOrCreateOwnerToken(): string {
+  const existing = getOwnerToken()
+  if (existing) return existing
+
+  const newToken = generateOwnerToken()
+  // Store owner token with 365 days expiry so user keeps ownership across sessions
+  setCookie(OWNER_TOKEN_COOKIE, newToken, 365)
+  return newToken
+}
 
 export function truncateJobId(id: string, head = 8, tail = 4): string {
   if (!id) return ''
   if (id.length <= head + tail + 1) return id
   return `${id.slice(0, head)}…${id.slice(-tail)}`
 }
+

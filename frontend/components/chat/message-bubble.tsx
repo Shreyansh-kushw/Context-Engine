@@ -1,14 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Copy, RotateCcw, Sparkles, User } from 'lucide-react'
+import { Check, Copy, FileText, RotateCcw, Sparkles, User } from 'lucide-react'
 import { Markdown } from '@/components/markdown'
+import type { SourceItem } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  sources?: SourceItem[]
   error?: boolean
 }
 
@@ -27,6 +29,15 @@ export function MessageBubble({
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
+
+  // Deduplicate sources by filename
+  const uniqueSources = message.sources
+    ? Array.from(
+        new Map(
+          message.sources.map((s) => [s.filename, s]),
+        ).values(),
+      )
+    : []
 
   return (
     <div
@@ -70,7 +81,37 @@ export function MessageBubble({
           ) : message.error ? (
             <p className="text-sm text-destructive">{message.content}</p>
           ) : (
-            <Markdown content={message.content} />
+            <>
+              <Markdown content={message.content} />
+
+              {/* Render cited sources if present */}
+              {uniqueSources.length > 0 && (
+                <div className="mt-3.5 border-t border-border/60 pt-2.5">
+                  <span className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    Cited Sources
+                  </span>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {uniqueSources.map((source, index) => (
+                      <span
+                        key={`${source.filename}-${index}`}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/40 px-2 py-1 text-xs text-foreground/90 transition-colors hover:bg-muted/70"
+                        title={source.filename}
+                      >
+                        <FileText className="size-3 text-primary shrink-0" />
+                        <span className="max-w-[200px] truncate">
+                          {source.filename}
+                        </span>
+                        {source.page != null && (
+                          <span className="text-[10px] text-muted-foreground">
+                            p.{source.page}
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 

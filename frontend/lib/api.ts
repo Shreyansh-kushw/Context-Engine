@@ -3,12 +3,26 @@
 // When NEXT_PUBLIC_API_URL is set (e.g. "http://localhost:8000"), requests go
 // to that backend. Otherwise they fall back to the built-in mock route handlers
 // under /api so the app is fully previewable inside v0 without a backend.
+import { getOrCreateOwnerToken } from './cookies'
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api'
+const API_KEY = process.env.API_KEY || ''
+
 
 export interface UploadResponse {
   job_id: string
   message: string
   status?: string
+}
+
+export interface SourceItem {
+  filename: string
+  page?: number | null
+}
+
+export interface QnAResponse {
+  answer: string
+  sources?: SourceItem[]
 }
 
 export type JobStatusType =
@@ -32,12 +46,31 @@ export interface JobStatusResponse {
   error?: string
 }
 
+/**
+ * Returns common authentication headers (X-OWNER-TOKEN and X-API-KEY)
+ * attached to all requests to the backend.
+ */
+export function getAuthHeaders(
+  customHeaders: Record<string, string> = {},
+): Record<string, string> {
+  const ownerToken = getOrCreateOwnerToken()
+  const headers: Record<string, string> = {
+    'X-OWNER-TOKEN': ownerToken,
+    'X-API-KEY': API_KEY,
+    ...customHeaders,
+  }
+  return headers
+}
+
 export async function uploadFiles(files: File[]): Promise<UploadResponse> {
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file))
 
+  const headers = getAuthHeaders()
+
   const res = await fetch(`${API_BASE}/upload-files`, {
     method: 'POST',
+    headers,
     body: formData,
   })
 
@@ -62,18 +95,19 @@ export async function uploadFiles(files: File[]): Promise<UploadResponse> {
  */
 export async function checkJobStatus(jobId: string): Promise<JobStatusResponse> {
   const encodedId = encodeURIComponent(jobId)
-  
+  const headers = getAuthHeaders({ Accept: 'application/json' })
+
   // Try primary endpoint pattern: GET /status/{job_id}
   let res = await fetch(`${API_BASE}/status/${encodedId}`, {
     method: 'GET',
-    headers: { 'Accept': 'application/json' },
+    headers,
   })
 
   // Fallback pattern 1: GET /job-status/{job_id} if 404
   if (res.status === 404) {
     res = await fetch(`${API_BASE}/job-status/${encodedId}`, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers,
     })
   }
 
@@ -81,18 +115,24 @@ export async function checkJobStatus(jobId: string): Promise<JobStatusResponse> 
   if (res.status === 404) {
     res = await fetch(`${API_BASE}/status?job_id=${encodedId}`, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers,
     })
   }
 
   if (!res.ok) {
     let errorMsg = `Status check failed (${res.status})`
+    if (res.status === 403) {
+      errorMsg = 'Unauthorized: Access to this job was denied.'
+    }
     try {
       const errData = await res.json()
       if (typeof errData === 'string') {
         errorMsg = errData
       } else if (errData.detail) {
-        errorMsg = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail)
+        errorMsg =
+          typeof errData.detail === 'string'
+            ? errData.detail
+            : JSON.stringify(errData.detail)
       } else if (errData.message) {
         errorMsg = errData.message
       }
@@ -107,7 +147,12 @@ export async function checkJobStatus(jobId: string): Promise<JobStatusResponse> 
   // 1. Backend returns a raw string (e.g. "Processing", "Success", "Failed")
   if (typeof data === 'string') {
     const lower = data.toLowerCase().trim()
-    if (lower === 'success' || lower === 'completed' || lower === 'done' || lower === 'ready') {
+    if (
+      lower === 'success' ||
+      lower === 'completed' ||
+      lower === 'done' ||
+      lower === 'ready'
+    ) {
       return { status: 'completed', message: 'Indexing complete' }
     }
     if (lower === 'failed' || lower === 'error') {
@@ -125,14 +170,23 @@ export async function checkJobStatus(jobId: string): Promise<JobStatusResponse> 
   let rawStatus = (data.status || data.state || '').toString().toLowerCase().trim()
 
   if (!rawStatus) {
-    if (data.completed === true || data.is_completed === true || data.ready === true || data.success === true) {
+    if (
+      data.completed === true ||
+      data.is_completed === true ||
+      data.ready === true ||
+      data.success === true
+    ) {
       rawStatus = 'completed'
     } else if (data.failed === true || data.error) {
       rawStatus = 'failed'
     } else {
       rawStatus = 'processing'
     }
-  } else if (rawStatus === 'success' || rawStatus === 'done' || rawStatus === 'ready') {
+  } else if (
+    rawStatus === 'success' ||
+    rawStatus === 'done' ||
+    rawStatus === 'ready'
+  ) {
     rawStatus = 'completed'
   } else if (rawStatus === 'error') {
     rawStatus = 'failed'
@@ -140,24 +194,42 @@ export async function checkJobStatus(jobId: string): Promise<JobStatusResponse> 
 
   return {
     status: rawStatus,
-    message: data.message || data.detail || (rawStatus === 'completed' ? 'Indexing complete' : 'Processing document...'),
+    message:
+      data.message ||
+      data.detail ||
+      (rawStatus === 'completed'
+        ? 'Indexing complete'
+        : 'Processing document...'),
     progress: typeof data.progress === 'number' ? data.progress : undefined,
     step: data.step,
     total_chunks: data.total_chunks ?? data.chunks_count,
     detail: typeof data.detail === 'string' ? data.detail : undefined,
-    error: typeof data.error === 'string' ? data.error : (rawStatus === 'failed' ? (data.detail || 'Processing failed') : undefined),
+    error:
+      typeof data.error === 'string'
+        ? data.error
+        : rawStatus === 'failed'
+          ? data.detail || 'Processing failed'
+          : undefined,
   }
 }
 
-export async function askQuestion(query: string, jobId: string): Promise<string> {
+export async function askQuestion(
+  query: string,
+  jobId: string,
+): Promise<QnAResponse> {
+  const headers = getAuthHeaders({ 'Content-Type': 'application/json' })
+
   const res = await fetch(`${API_BASE}/qna`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ query, job_id: jobId }),
   })
 
   if (!res.ok) {
     let errorMsg = `Request failed (${res.status})`
+    if (res.status === 403) {
+      errorMsg = 'Unauthorized: You do not own this document session.'
+    }
     try {
       const errData = await res.json()
       if (errData.detail) errorMsg = errData.detail
@@ -169,7 +241,17 @@ export async function askQuestion(query: string, jobId: string): Promise<string>
   }
 
   const data = await res.json()
-  // Backend may return a raw string or an object with an "answer" field.
-  if (typeof data === 'string') return data
-  return data.answer ?? data.response ?? data.message ?? ''
+  // Backend may return a raw string or an object with an "answer" field and "sources"
+  if (typeof data === 'string') {
+    return { answer: data, sources: [] }
+  }
+
+  const answer = data.answer ?? data.response ?? data.message ?? ''
+  const rawSources = Array.isArray(data.sources) ? data.sources : []
+  const sources: SourceItem[] = rawSources.map((s: any) => ({
+    filename: typeof s === 'string' ? s : s?.filename || 'Document',
+    page: s?.page ?? null,
+  }))
+
+  return { answer, sources }
 }

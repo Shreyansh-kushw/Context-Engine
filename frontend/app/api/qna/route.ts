@@ -23,7 +23,13 @@ export async function POST(request: Request) {
   await new Promise((resolve) => setTimeout(resolve, 1200))
 
   const answer = buildMockAnswer(query)
-  return NextResponse.json({ answer })
+  return NextResponse.json({
+    answer,
+    sources: [
+      { filename: 'project-specification.pdf' },
+      { filename: 'overview-notes.txt' },
+    ],
+  })
 }
 
 function buildMockAnswer(query: string): string {

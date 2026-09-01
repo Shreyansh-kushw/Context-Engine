@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ToastProvider } from '@/components/toast'
+import { OwnerTokenProvider } from '@/components/owner-token-provider'
 import './globals.css'
 
 const geistSans = Geist({
@@ -34,9 +35,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <OwnerTokenProvider>{children}</OwnerTokenProvider>
+        </ToastProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )
 }
+
