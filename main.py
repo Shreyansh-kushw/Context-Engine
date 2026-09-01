@@ -77,9 +77,12 @@ async def upload_file(
     """Endpoint to upload and ingest documents"""
 
     job_id = secrets.token_urlsafe(32)  # creating random job ids.
-    # jobs[job_id] = {"status": "Processing"}
 
-    new_job = Jobs(job_id=job_id, owner_token=owner_token)
+    new_job = Jobs(
+        job_id=job_id,
+        owner_token=owner_token,
+        total_files=len(files),
+    )
 
     try:
         db.add(new_job)
@@ -110,8 +113,40 @@ async def upload_file(
 
         except Exception as e:
             # raising standard 500 error if any unknown exceptions are encountered.
+            job = await db.execute(
+                select(Jobs).where(Jobs.job_id==job_id)
+            ).scalars().first()
 
-            # jobs[job_id] = {"status": "Failed"}
+            job.succeeded = index + 1
+            job.failed_files = {"filename": filename, "error": str(e)}
+            job.status = "Failed"
+
+            try:
+                await db.commit()
+
+            except Exception:
+                await db.rollback()
+
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+                )
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            )
+    
+    else:
+        job = await db.execute(
+            select(Jobs).where(Jobs.job_id==job_id)
+        ).scalars().first()
+        job.succeeded = len(files)
+        job.status = "Success"
+
+        try:
+            await db.commit()
+        
+        except Exception as e:
+            await db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
             )
