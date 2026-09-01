@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -29,7 +30,6 @@ from app.utils.file_validator import MAX_FILE_BYTES, validate_upload
 
 app = FastAPI()
 
-jobs = {}
 UPLOAD_DIR = Path("upload_files")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -106,7 +106,7 @@ async def upload_file(
             async with aiofiles.open(filepath, mode="wb") as f:
                 await f.write(content)
 
-            background_tasks.add_task(ingestion_pipeline, filepath, db, job_id, jobs)
+            background_tasks.add_task(ingestion_pipeline, filename, filepath, job_id, index)
 
         except HTTPException:
             # raise any HTTPException if encountered.
@@ -125,29 +125,13 @@ async def upload_file(
             try:
                 await db.commit()
 
-            except Exception:
+            except Exception as e:
                 await db.rollback()
 
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
                 )
 
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-            )
-    
-    else:
-        job = await db.execute(
-            select(Jobs).where(Jobs.job_id==job_id)
-        ).scalars().first()
-        job.succeeded = len(files)
-        job.status = "Success"
-
-        try:
-            await db.commit()
-        
-        except Exception as e:
-            await db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
             )

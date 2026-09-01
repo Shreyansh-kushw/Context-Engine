@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from app.models import Chunks
 from app.utils.config import settings
 
 llm = ChatGroq(model=settings.groq_model, api_key=settings.groq_api_key)
@@ -23,7 +24,7 @@ prompt = ChatPromptTemplate.from_messages(
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8))
 async def generate_response(
-    chunks: list[str],
+    chunks: list[Chunks],
     question: str,
 ):
     """Generates answer for the asked question based on the provided chunks as context using LLM API."""
@@ -31,7 +32,7 @@ async def generate_response(
     chain = prompt | llm
 
     context_block = "\n\n".join(
-        f"[Source: {c.source_filename}, p,{c.page_number}]\n{c.chunk_text}\n"
+        f"[Source: {c.source_filename}]\n{c.chunk_text}\n"
         for c in chunks
     )
 

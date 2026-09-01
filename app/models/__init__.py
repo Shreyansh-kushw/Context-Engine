@@ -1,8 +1,7 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Integer, String, Text, JSON
+from sqlalchemy import Integer, String, Text, JSON, Index, Computed
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from pgvector.sqlalchemy import Vector
 
 from app.database import Base
 
@@ -28,10 +27,6 @@ class Chunks(Base):
         nullable=False,
     )
 
-    page_number: Mapped[int | None] = mapped_column(
-        Integer,
-        nullable=True,
-    )
 
     embedding: Mapped[Vector] = mapped_column(
         Vector(768),
@@ -47,7 +42,7 @@ class Chunks(Base):
 
     # creating the GIN index on the TSVECTOR column
     __table_args__ = (
-        Index("ix_chunks_tsv", "chunk_tsv", postgresql_using="gin")
+        Index("ix_chunks_tsv", "chunk_tsv", postgresql_using="gin"),
     )
 
     """
@@ -63,5 +58,5 @@ class Jobs(Base):
     owner_token: Mapped[str] = mapped_column(String, index=True, nullable=False)
     total_files: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     succeeded: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    failed_files: Mapped[dict] = mapped_column(JSON, default=fict)
+    failed_files: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String, nullable=False, default="Processing")

@@ -18,6 +18,8 @@ from app.services.chunker import chunker, generate_chunks
 from app.services.llm_service import generate_response
 from app.utils.retrieval_utils import reciprocal_rank_fusion
 from app.services.reranker_service import rerank
+from app.database import AsyncSessionLocal
+from app.models import Jobs
 
 # Helper Pipelines
 
@@ -79,7 +81,7 @@ def image_and_text_pipeline(filepath: Path):
 
 
 async def ingestion_pipeline(
-    filename: str, filepath: Path, db: AsyncSession, job_id: str, jobs: dict
+    filename: str, filepath: Path, job_id: str, index: int
 ):
     """The main ingest data pipeline"""
 
@@ -105,7 +107,6 @@ async def ingestion_pipeline(
             chunks = image_and_text_pipeline(filepath)
 
         else:  # unsupported file type
-            jobs[job_id]["status"] = "Failed"
             raise ValueError(f"Unsupported file type: {file_ext}")
 
         # generating embeddings and adding to the table in database
@@ -113,29 +114,65 @@ async def ingestion_pipeline(
             [chunker.contextualize(chunk) for chunk in chunks]
         )
 
-        for chunk, embedding in zip(chunks, embeddings):
-            new_chunk_field = Chunks(
-                job_id=job_id,
-                source_filename=filename,
-                chunk_text=chunker.contextualize(chunk),
-                page_number=chunk.page_number,
-                embedding=embedding,
-            )
+        async with AsyncSessionLocal() as db:
+            for chunk, embedding in zip(chunks, embeddings):
+                new_chunk_field = Chunks(
+                    job_id=job_id,
+                    source_filename=filename,
+                    chunk_text=chunker.contextualize(chunk),
+                    embedding=embedding,
+                )
 
-            db.add(new_chunk_field)
+                db.add(new_chunk_field)
 
-        try:
-            await db.commit()
-            jobs[job_id]["status"] = "Success"
+            try:
+                await db.commit()
 
-        except Exception:
-            jobs[job_id]["status"] = "Failed"
-            await db.rollback()
-            raise
+            except Exception:
+                await db.rollback()
+                raise
 
-    except Exception:
-        jobs[job_id]["status"] = "Failed"
+    except Exception as e:
+        async with AsyncSessionLocal() as db:
+            job = await db.execute(
+                select(Jobs).where(Jobs.job_id==job_id)
+            ).scalars().first()
+
+            job.succeeded = index + 1
+            job.failed_files = {"filename": filename, "error": str(e)}
+            job.status = "Failed"
+
+            try:
+                await db.commit()
+
+            except Exception as e:
+                await db.rollback()
+
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+                )
         raise
+    
+    else:
+        async with AsyncSessionLocal() as db:
+            job = await db.execute(
+                select(Jobs).where(Jobs.job_id==job_id)
+            ).scalars().first()
+
+            job.succeeded += 1
+
+            if job.succeeded == job.total_files:
+                job.status = "Success"
+
+            try:
+                await db.commit()
+
+            except Exception as e:
+                await db.rollback()
+
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+                )
 
     finally:
         # Clean up local file from upload_files directory
@@ -163,8 +200,8 @@ async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
     vector_search_results = vector_search.scalars().all()
 
     keyword_search = await db.execute(
-        select(chunks)
-        .where(Chunk.job_id == job_id)
+        select(Chunks)
+        .where(Chunks.job_id == job_id)
         .where(Chunks.chunk_tsv.op("@@")(
             func.websearch_to_tsquery("english", query)
         ))
@@ -187,9 +224,7 @@ async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
         )
     
     # Taking the top 5 chunks
-    top_chunks = rerank(fused_chunks)
+    top_chunks = rerank(query, fused_chunks)
 
-    chunk_texts = [chunk.chunk_text for chunk in top_chunks]
-
-    response = await generate_response(chunks=chunk_texts, question=query)
+    response = await generate_response(chunks=top_chunks, question=query)
     return response
