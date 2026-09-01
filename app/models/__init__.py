@@ -1,6 +1,8 @@
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Integer, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import TSVECTOR
+from pgvector.sqlalchemy import Vector
 
 from app.database import Base
 
@@ -35,6 +37,24 @@ class Chunks(Base):
         Vector(768),
         nullable=False,
     )
+
+    # creating the TSVECTOR column
+    chunk_tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', chunk_text)", persistent=True),
+        nullable=True,
+    )
+
+    # creating the GIN index on the TSVECTOR column
+    __table_args__ = (
+        Index("ix_chunks_tsv", "chunk_tsv", postgresql_using="gin")
+    )
+
+    """
+    Think of tsvector as pgvector but for normal text,
+    and GIN as HNSW indexing for vector search, made to make searching queries 
+    faster and more efficient.
+    """
 
 
 class Jobs(Base):
