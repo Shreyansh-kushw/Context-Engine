@@ -5,3 +5,6 @@ __pycache__
 *.pyc
 .pytest_cache
 frontend
+upload_files
+*.log
+.DS_Store
