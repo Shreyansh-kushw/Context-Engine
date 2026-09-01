@@ -1,5 +1,5 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import Integer, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -16,14 +16,20 @@ class Chunks(Base):
         String, unique=False, nullable=False, index=True
     )
 
-    source_filename: Mapped[str] = mapped_column(String, nullable=False)
+    source_filename: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+    )
 
     chunk_text: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
 
-    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_number: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
 
     embedding: Mapped[Vector] = mapped_column(
         Vector(768),
@@ -32,8 +38,10 @@ class Chunks(Base):
 
 
 class Jobs(Base):
-
     __tablename__ = "jobs"
     job_id: Mapped[str] = mapped_column(String, primary_key=True)
     owner_token: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    total_files: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    succeeded: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed_files: Mapped[dict] = mapped_column(JSON, default=fict)
     status: Mapped[str] = mapped_column(String, nullable=False, default="Processing")

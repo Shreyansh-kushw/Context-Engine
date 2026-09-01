@@ -76,7 +76,9 @@ def image_and_text_pipeline(filepath: Path):
 # Main data ingestion pipeline
 
 
-async def ingestion_pipeline(filename: str, filepath: Path, db: AsyncSession, job_id: str, jobs: dict):
+async def ingestion_pipeline(
+    filename: str, filepath: Path, db: AsyncSession, job_id: str, jobs: dict
+):
     """The main ingest data pipeline"""
 
     try:
