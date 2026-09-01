@@ -16,10 +16,14 @@ class Chunks(Base):
         String, unique=False, nullable=False, index=True
     )
 
+    source_filename: Mapped[str] = mapped_column(String, nullable=False)
+
     chunk_text: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
+
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     embedding: Mapped[Vector] = mapped_column(
         Vector(768),
@@ -28,6 +32,7 @@ class Chunks(Base):
 
 
 class Jobs(Base):
+
     __tablename__ = "jobs"
     job_id: Mapped[str] = mapped_column(String, primary_key=True)
     owner_token: Mapped[str] = mapped_column(String, index=True, nullable=False)

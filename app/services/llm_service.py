@@ -11,7 +11,7 @@ prompt = ChatPromptTemplate.from_messages(
             "system",
             "Answer the question based only on the provided chunks as context. If the answer is not in the provided context, say so.",
         ),
-        ("human", "rrContext: \n\n{context}\n\nQuestion: {question}"),
+        ("human", "Context: \n\n{context}\n\nQuestion: {question}"),
     ]
 )
 
@@ -24,11 +24,22 @@ async def generate_response(
 
     chain = prompt | llm
 
+    context_block = "\n\n".join(
+        f"[Source: {c.source_filename}, p,{c.page_number}]\n{c.chunk_text}\n"
+        for c in chunks
+    )
+
     response = await chain.ainvoke(
         {
-            "context": f"""{"\n\n".join(chunks)}""",
+            "context": context_block,
             "question": question,
         }
     )
 
-    return response.content
+    return {
+        "answer": response.content,
+        "sources": [
+            {"filename": c.source_filename, "page": c.page_number}
+            for c in chunks
+        ],
+    }

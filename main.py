@@ -94,10 +94,10 @@ async def upload_file(
 
     for index, file in enumerate(files):
         try:
-            filepath = UPLOAD_DIR / f"{job_id}{index + 1}{Path(file.filename).suffix}"
             filename = file.filename
             content = await file.read()
             validate_upload(content, filename)
+            filepath = UPLOAD_DIR / f"{job_id}{index + 1}{Path(file.filename).suffix}"
 
             with open(filepath, "wb") as f:
                 f.write(content)

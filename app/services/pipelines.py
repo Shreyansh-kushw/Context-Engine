@@ -76,7 +76,7 @@ def image_and_text_pipeline(filepath: Path):
 # Main data ingestion pipeline
 
 
-async def ingestion_pipeline(filepath: Path, db: AsyncSession, job_id: str, jobs: dict):
+async def ingestion_pipeline(filename: str, filepath: Path, db: AsyncSession, job_id: str, jobs: dict):
     """The main ingest data pipeline"""
 
     try:
@@ -112,7 +112,9 @@ async def ingestion_pipeline(filepath: Path, db: AsyncSession, job_id: str, jobs
         for chunk, embedding in zip(chunks, embeddings):
             new_chunk_field = Chunks(
                 job_id=job_id,
+                source_filename=filename,
                 chunk_text=chunker.contextualize(chunk),
+                page_number=chunk.page_number,
                 embedding=embedding,
             )
 
