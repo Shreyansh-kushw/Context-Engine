@@ -1,6 +1,6 @@
 # Context Engine 🔍
 
-> A high-performance, full-stack RAG engine for multi-document ingestion, semantic search, and grounded question answering.
+> A high-performance, full-stack RAG engine featuring Hybrid Search (Dense Vector + Sparse Keyword TSVECTOR), Reciprocal Rank Fusion (RRF), Cross-Encoder Reranking, and Multi-Document Grounded Question Answering.
 
 [![LIVE DEMO](https://img.shields.io/badge/LIVE_DEMO-Visit_Now-blue?style=for-the-badge)](https://context-engine-alpha.vercel.app/)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/Shreyansh-kushw/Context-Engine)
@@ -8,23 +8,29 @@
 ![Python](https://img.shields.io/badge/Language-Python_|_TypeScript-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Frontend-Next.js-black?style=flat-square&logo=next.js)
-![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![pgvector](https://img.shields.io/badge/Vector_Search-pgvector-6C63FF?style=flat-square)
+![Docker](https://img.shields.io/badge/Container-Docker_Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Groq](https://img.shields.io/badge/LLM-Groq_(Llama--3.3)-F55036?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
-**Context Engine** is a full-stack Retrieval-Augmented Generation (RAG) platform built with Next.js, FastAPI, and PostgreSQL with pgvector. Most LLMs hallucinate or lack context when queried about specific documents. Context Engine solves this by providing a scalable multi-document ingestion pipeline that extracts content across diverse formats, chunks documents using structure-aware tokenization, indexes them with local semantic vector embeddings, and retrieves relevant context to deliver accurate, grounded answers powered by Groq.
+**Context Engine** is an enterprise-grade, full-stack Retrieval-Augmented Generation (RAG) platform. It solves LLM hallucinations and information gaps by combining **Dense Semantic Vector Search** (`BAAI/bge-base-en-v1.5` via pgvector) and **Sparse Full-Text Keyword Search** (PostgreSQL `TSVECTOR` + GIN Index), merging candidate results through **Reciprocal Rank Fusion (RRF)**, and reranking passages with a **Cross-Encoder model** (`ms-marco-MiniLM-L6-v2`) before generating grounded answers with source citations using Groq.
 
+---
 
 ## 🚀 Key Features
 
-- **Multi-Document Ingestion & Background Processing:** Upload multiple files at once with asynchronous background processing and live job status polling (`/status/{job_id}`).
-- **OCR & Multi-Format Parsing:** Ingests PDFs (with batching for large files), plain text, and image formats (JPG, PNG, GIF, BMP, WEBP, TIFF) via Docling and EasyOCR.
-- **Hybrid Semantic Chunking:** Structure-aware document splitting using Docling and HuggingFace tokenizers to preserve document layout and context.
-- **Local Offline Embeddings:** Generates 768-dimensional embeddings with `BAAI/bge-base-en-v1.5` via SentenceTransformers running locally.
-- **pgvector Similarity Search:** High-performance cosine distance similarity retrieval directly inside PostgreSQL without requiring a separate vector database.
-- **Fast Async LLM Inference:** Powered by Groq API (`llama-3.3-70b-versatile`) orchestrated with LangChain for low-latency question answering.
-- **Modern Full-Stack UI:** Modern Next.js 16 (App Router) frontend with live indexing feedback, Markdown rendering, and an interactive chat interface.
+- **Hybrid Search (Dense + Sparse):** Combines semantic vector similarity search (`pgvector` cosine distance) with PostgreSQL full-text keyword search (`TSVECTOR` with GIN indexing and `ts_rank_cd`).
+- **Reciprocal Rank Fusion (RRF):** Fuses ranking positions from both retrieval strategies ($RRF = \sum \frac{1}{k + r}$) to balance exact keyword hits and semantic concepts.
+- **Cross-Encoder Neural Reranking:** Employs `cross-encoder/ms-marco-MiniLM-L6-v2` to score query-passage pairs directly, passing only the highest-relevance context to the LLM.
+- **Multi-Document Ingestion & Background Processing:** Asynchronous background file processing with real-time job status tracking (`/status/{job_id}`).
+- **OCR & Multi-Format Document Parsing:** Ingests PDFs (with automatic 10-page batching), plain text, and images (JPG, PNG, GIF, BMP, WEBP, TIFF) using Docling and EasyOCR.
+- **Hybrid Semantic Chunking:** Tokenizer-aware document splitting that preserves document headings, paragraphs, and contextual hierarchy.
+- **Source Citation & Attribution:** AI responses attribute facts back to the original documents, rendered as interactive citation badges in the chat UI.
+- **Multi-Tenant Session & Security:**
+  - **Owner Token Auth:** Auto-generated client tokens (`X-OWNER-TOKEN`) persisted in cookies to isolate user document sessions.
+  - **API Key Guard:** `X-API-KEY` header authentication with rate limiting (`SlowAPI`) and payload size protection (25MB max).
+- **Full-Stack Docker Compose:** One-command setup for PostgreSQL (with pgvector), FastAPI backend (with pre-cached models), and Next.js frontend.
 
 ---
 
@@ -34,342 +40,330 @@
 | Technology | Description | Version |
 |---|---|---|
 | **FastAPI** | High-performance async Python web framework | `>=0.136.3` |
-| **PostgreSQL & asyncpg** | Primary database with async driver | `>=0.31.0` |
-| **pgvector** | Open-source vector similarity search for PostgreSQL | `>=0.4.2` |
-| **SQLAlchemy (Async)** | Modern ORM with `Mapped` typed columns | `>=2.0.50` |
-| **Docling & EasyOCR** | Multi-format document parser, structure-aware chunker, and OCR | `>=2.100.0` / `>=1.7.2` |
-| **SentenceTransformers** | Local 768-dim embedding generation (`BAAI/bge-base-en-v1.5`) | `>=5.5.1` |
-| **LangChain & Groq** | LLM orchestration and ultra-fast inference (`openai/gpt-oss-120b`) | `>=1.3.9` / `>=1.1.3` |
+| **PostgreSQL & asyncpg** | Async relational database with native vector & text search | `16` / `>=0.31.0` |
+| **pgvector** | Vector similarity search extension for PostgreSQL | `>=0.4.2` |
+| **SQLAlchemy 2.0 (Async)** | Async ORM with typed declarative models and computed columns | `>=2.0.50` |
+| **SentenceTransformers** | Local 768-dim embeddings (`BAAI/bge-base-en-v1.5`) | `>=5.5.1` |
+| **CrossEncoder** | Neural passage reranking (`cross-encoder/ms-marco-MiniLM-L6-v2`) | `>=5.5.1` |
+| **Docling & EasyOCR** | Multi-format document parser, structure chunker, and OCR | `>=2.100.0` / `>=1.7.2` |
+| **LangChain & Groq** | LLM orchestration and ultra-low latency generation | `>=1.3.9` / `>=1.1.3` |
+| **SlowAPI** | Redis/in-memory rate limiting middleware | `>=0.1.10` |
 | **Alembic** | Database migrations management | `>=1.18.4` |
 
 ### Frontend
 | Technology | Description | Version |
 |---|---|---|
-| **Next.js** | React framework (App Router) | `^16.3.3` |
-| **React** | UI library | `^19.0.0` |
-| **Tailwind CSS** | Utility-first CSS styling framework | `^4.3.3` |
-| **Lucide React** | Modern icon set | `^1.16.0` |
-| **React Markdown & Remark GFM** | Rich markdown rendering for AI responses | `^10.1.0` & `^4.0.1` |
+| **Next.js** | React framework (App Router, Turbopack) | `^16.3.3` |
+| **React** | UI Library | `^19.0.0` |
+| **Tailwind CSS** | Styling & UI tokens | `^4.3.3` |
+| **Lucide React** | Icons | `^1.16.0` |
+| **React Markdown & Remark GFM** | AI response markdown rendering & citations | `^10.1.0` & `^4.0.1` |
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    subgraph Client ["Frontend (Next.js 16)"]
+        UI["Chat & Upload UI"]
+        Cookies["Owner Token Cookie (X-OWNER-TOKEN)"]
+    end
+
+    subgraph API ["FastAPI Backend"]
+        Auth["Auth & Rate Limiting (API Key + Owner Token)"]
+        Ingest["Background Ingestion Worker"]
+        Retrieve["Hybrid Retrieval Engine"]
+        LLM["LangChain + Groq (LLaMA 3.3)"]
+    end
+
+    subgraph Data ["PostgreSQL 16 + pgvector"]
+        VectorTable["Chunks Table (Vector 768)"]
+        FTSIndex["TSVECTOR Column (GIN Index)"]
+        JobsTable["Jobs Table"]
+    end
+
+    UI -->|"1. Upload Files (Multipart)"| Auth
+    Auth -->|"2. Spawn Task & Return job_id"| Ingest
+    Ingest -->|"Extract & OCR"| Docling["Docling + EasyOCR"]
+    Docling -->|"Hybrid Chunk"| Chunker["Hybrid Chunker"]
+    Chunker -->|"Embed (768-dim)"| BGE["BGE-Base Model"]
+    BGE -->|"Store Vector + TSVECTOR"| Data
+
+    UI -->|"3. Poll Status (/status/{job_id})"| Auth
+    Auth -->|"Check Progress"| JobsTable
+
+    UI -->|"4. Ask Question (/qna)"| Auth
+    Auth -->|"Query"| Retrieve
+    Retrieve -->|"A. Dense Cosine Search (< 0.5)"| VectorTable
+    Retrieve -->|"B. Sparse Keyword Search (ts_rank_cd)"| FTSIndex
+    VectorTable -->|"Ranked List 1"| RRF["Reciprocal Rank Fusion (RRF)"]
+    FTSIndex -->|"Ranked List 2"| RRF
+    RRF -->|"Fused Candidates"| Reranker["Cross-Encoder Reranker"]
+    Reranker -->|"Top-5 Re-ranked Chunks"| LLM
+    LLM -->|"5. Answer + Source Filenames"| UI
+```
+
+---
+
+## 🧠 Retrieval Pipeline Details
+
+```mermaid
+sequenceDiagram
+    participant User as User / Frontend
+    participant API as FastAPI Backend
+    participant DB as PostgreSQL (pgvector + TSVECTOR)
+    participant RRF as Reciprocal Rank Fusion
+    participant Rerank as Cross-Encoder Reranker
+    participant Groq as Groq LLM API
+
+    User->>API: POST /qna (query, job_id) [X-API-KEY, X-OWNER-TOKEN]
+    API->>API: Verify Ownership & API Key
+    
+    par Dense Vector Search
+        API->>DB: Cosine distance query (< 0.5) limit 20
+        DB-->>API: Vector search results
+    and Sparse Keyword Search
+        API->>DB: tsvector @@ websearch_to_tsquery limit 20
+        DB-->>API: Keyword search results
+    end
+
+    API->>RRF: Fuse ranked lists with RRF formula (k=60)
+    RRF-->>API: Fused chunk candidates
+    API->>Rerank: Score (query, chunk_text) pairs
+    Rerank-->>API: Top 5 highest scoring chunks
+    API->>Groq: Generate answer with context block & sources prompt
+    Groq-->>API: Grounded response text
+    API-->>User: { answer, sources: [{ filename }] }
+```
 
 ---
 
 ## 🚦 Quick Start
 
-Follow these steps to run Context Engine locally.
-
 ### Prerequisites
-- Python >= 3.12
-- Node.js >= 20 & `npm`
-- PostgreSQL with the `pgvector` extension installed
-- `uv` (Fast Python package installer)
-- Groq API Key from [console.groq.com](https://console.groq.com/keys)
+- [Docker & Docker Compose](https://docs.docker.com/get-docker/) **(Recommended)**
+- *Or for local development:* Python >= 3.12, Node.js >= 20, PostgreSQL with `pgvector`, and `uv`.
+- A Groq API key from [console.groq.com](https://console.groq.com/keys).
 
-### 1. Database Setup
-Ensure PostgreSQL is running and enable the vector extension:
+---
+
+### Method 1: One-Command Docker Compose (Recommended)
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Shreyansh-kushw/Context-Engine.git
+   cd Context-Engine
+   ```
+
+2. **Configure environment variables:**
+   Create `.env` in the root folder:
+   ```env
+   DATABASE_URL=postgresql+asyncpg://postgres:postgrespassword@db:5432/context_engine
+   DATABASE_URL_ALEMBIC=postgresql+psycopg://postgres:postgrespassword@db:5432/context_engine
+   GROQ_API_KEY=gsk_your_groq_api_key_here
+   GROQ_MODEL=llama-3.3-70b-versatile
+   API_KEY=your_secure_api_key_here
+   ```
+
+   Create `frontend/.env.local`:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:8000
+   API_KEY=your_secure_api_key_here
+   ```
+
+3. **Launch the stack:**
+   ```bash
+   docker compose up --build
+   ```
+
+4. **Run database migrations inside the backend container:**
+   ```bash
+   docker compose exec backend uv run alembic upgrade head
+   ```
+
+5. **Open [http://localhost:3000](http://localhost:3000)** in your browser!
+
+---
+
+### Method 2: Manual Local Development
+
+#### 1. Database Setup
+Make sure PostgreSQL is running locally and enable the vector extension:
 ```sql
+CREATE DATABASE context_engine;
+\c context_engine;
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-### 2. Environment Variables
-Create a `.env` file in the root directory for the backend and `frontend/.env.local` for the frontend.
-
-**Root `.env` (Backend):**
-| Variable | Description | Example |
-|---|---|---|
-| `DATABASE_URL` | Async PostgreSQL connection string (`asyncpg`) | `postgresql+asyncpg://user:pass@localhost:5432/context_engine` |
-| `DATABASE_URL_ALEMBIC` | Sync PostgreSQL connection string for Alembic (`psycopg`) | `postgresql+psycopg://user:pass@localhost:5432/context_engine` |
-| `GROQ_API_KEY` | Your Groq API key | `gsk_...` |
-| `GROQ_MODEL` | Groq LLM model ID | `openai/gpt-oss-120b` |
-
-**`frontend/.env.local` (Frontend):**
-| Variable | Description | Example |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | Backend API Base URL | `http://localhost:8000` |
-
-### 3. Backend Setup
+#### 2. Backend Setup
 ```bash
-# Install dependencies using uv
+# Install dependencies with uv
 uv sync
 
 # Run database migrations
 alembic upgrade head
 
-# Start the FastAPI development server
-uv run uvicorn main:app --reload
+# Start FastAPI development server
+uv run uvicorn main:app --reload --port 8000
 ```
-*The backend API will be available at [http://localhost:8000](http://localhost:8000) (Interactive Swagger docs at [http://localhost:8000/docs](http://localhost:8000/docs)).*
+*Swagger docs available at [http://localhost:8000/docs](http://localhost:8000/docs).*
 
-### 4. Frontend Setup
+#### 3. Frontend Setup
 ```bash
-# Navigate to the frontend directory
 cd frontend
 
-# Install dependencies
+# Install npm dependencies
 npm install
 
-# Start the Next.js development server
+# Start Next.js development server
 npm run dev
 ```
-*The frontend application will be available at [http://localhost:3000](http://localhost:3000).*
-
-### 5. Docker Setup (Optional)
-```bash
-# Build the Docker image
-docker build -t context-engine .
-
-# Run the container with environment variables
-docker run -p 8000:8000 --env-file .env context-engine
-```
-
----
-
-## 📂 Project Structure
-
-```
-Context-Engine/
-├── app/
-│   ├── database/        # Async database engine, session factory, Base model
-│   ├── models/          # SQLAlchemy models (Chunks with pgvector column)
-│   ├── schema/          # Pydantic models (QueryRequest)
-│   ├── services/
-│   │   ├── chunker.py   # Hybrid chunking via Docling & HF tokenizer
-│   │   ├── embedder.py  # Local SentenceTransformer embeddings (BGE-base)
-│   │   ├── llm_service.py # LangChain + Groq chain construction
-│   │   └── pipelines.py # Ingestion (PDF/OCR/Images) & Retrieval pipelines
-│   └── utils/
-│       └── config.py    # Pydantic Settings configuration
-├── frontend/
-│   ├── app/             # Next.js App Router (upload, chat, layout)
-│   ├── components/      # UI components & widgets
-│   ├── lib/             # API client, status polling, utility helpers
-│   ├── public/          # Static assets & icons
-│   ├── package.json     # Frontend dependencies (npm)
-│   └── tsconfig.json    # TypeScript configuration
-├── alembic/             # Database migration scripts
-├── upload_files/        # Temporary storage for processing files
-├── alembic.ini          # Alembic configuration
-├── dockerfile           # Docker container configuration
-├── main.py              # FastAPI application entry point & routes
-├── pyproject.toml       # Backend dependencies (uv)
-├── requirements.txt     # Exported Python dependencies
-├── uv.lock              # uv lockfile
-└── .python-version      # Python version specification
-```
-
----
-
-## 🏗️ Architecture
-
-```mermaid
-graph TD
-    Client["Next.js Frontend"] -->|"1. Upload Files"| API["FastAPI Backend"]
-    API -->|"2. Spawn Task & Return job_id"| Ingest["Background Ingestion Task"]
-    
-    Ingest -->|"Parse & OCR"| Docling["Docling + EasyOCR"]
-    Docling -->|"Hybrid Chunking"| Chunker["Docling Chunker"]
-    Chunker -->|"768-dim Vectors"| Embedder["SentenceTransformers (BGE-base)"]
-    Embedder -->|"Store Embeddings"| DB[("PostgreSQL + pgvector")]
-    
-    Client -->|"3. Poll Status (/status)"| API
-    Client -->|"4. Ask Query (/qna)"| API
-    API -->|"5. Embed Query"| Embedder
-    API -->|"6. Cosine Search"| DB
-    DB -->|"7. Top Chunks"| Retrieval["Retrieval Pipeline"]
-    Retrieval -->|"8. Context + Prompt"| Groq["Groq API (LLaMA 3.3)"]
-    Groq -->|"9. Answer"| API
-    API -->|"10. Response"| Client
-```
+*Frontend available at [http://localhost:3000](http://localhost:3000).*
 
 ---
 
 ## 📡 API Endpoints Reference
 
-### Ingestion & Status
-| Method | Endpoint | Description | Auth Required |
-|---|---|---|---|
-| `POST` | `/upload-files` | Upload multiple files and trigger asynchronous background ingestion | No |
-| `GET` | `/status/{job_id}` | Check status of document ingestion job (`Processing`, `Success`, `Failed`) | No |
+All endpoints require the `X-API-KEY` header and `X-OWNER-TOKEN` header.
 
-### Question Answering
-| Method | Endpoint | Description | Auth Required |
+| Method | Endpoint | Description | Rate Limit |
 |---|---|---|---|
-| `POST` | `/qna` | Query ingested documents for a specific `job_id` | No |
+| `POST` | `/upload-files` | Upload documents and trigger async background ingestion | 5 / min |
+| `GET` | `/status/{job_id}` | Check job ingestion status (`Processing`, `Success`, `Failed`) | — |
+| `POST` | `/qna` | Query context engine for a specific `job_id` | 10 / min |
 
 ---
 
-### Endpoint Details
+### Sample Requests
 
-#### `POST /upload-files`
-Uploads documents for analysis. Returns a `job_id` immediately while parsing, chunking, and embedding run asynchronously in the background.
-
-**Request:** `multipart/form-data` with `files` (array of uploaded files).
-
-**Example:**
+#### 1. Upload Documents
 ```bash
 curl -X POST 'http://localhost:8000/upload-files' \
-  -F 'files=@document.pdf' \
-  -F 'files=@notes.png'
+  -H 'X-API-KEY: your_api_key' \
+  -H 'X-OWNER-TOKEN: owner_session_token' \
+  -F 'files=@report.pdf' \
+  -F 'files=@diagram.png'
 ```
-
-**Response:**
+**Response (200 OK):**
 ```json
 {
-  "job_id": "a1b2c3d4e5f67890",
+  "job_id": "8f9a2c1e7b4d3a0f5e6d7c8b9a0f1e2d",
   "message": "Files uploaded successfully"
 }
 ```
 
----
-
-#### `GET /status/{job_id}`
-Checks the current processing status for an upload job.
-
-**Example:**
+#### 2. Check Processing Status
 ```bash
-curl -X GET 'http://localhost:8000/status/a1b2c3d4e5f67890'
+curl -X GET 'http://localhost:8000/status/8f9a2c1e7b4d3a0f5e6d7c8b9a0f1e2d' \
+  -H 'X-API-KEY: your_api_key' \
+  -H 'X-OWNER-TOKEN: owner_session_token'
 ```
-
-**Response:**
+**Response (200 OK):**
 ```json
 "Success"
 ```
 
----
-
-#### `POST /qna`
-Queries all documents associated with a `job_id`. Retrieves the top-5 most relevant chunks via cosine similarity search and generates a grounded response.
-
-**Request:** `application/json`
-```json
-{
-  "query": "What are the primary findings in the uploaded document?",
-  "job_id": "a1b2c3d4e5f67890"
-}
-```
-
-**Example:**
+#### 3. Ask Questions (Q&A)
 ```bash
 curl -X POST 'http://localhost:8000/qna' \
+  -H 'X-API-KEY: your_api_key' \
+  -H 'X-OWNER-TOKEN: owner_session_token' \
   -H 'Content-Type: application/json' \
   -d '{
-    "query": "What are the primary findings in the uploaded document?",
-    "job_id": "a1b2c3d4e5f67890"
+    "query": "What are the quarterly performance metrics?",
+    "job_id": "8f9a2c1e7b4d3a0f5e6d7c8b9a0f1e2d"
   }'
 ```
-
-**Response:**
+**Response (200 OK):**
 ```json
-"The primary findings include..."
+{
+  "answer": "According to the uploaded report, Q3 revenue increased by 24%...",
+  "sources": [
+    {
+      "filename": "report.pdf"
+    }
+  ]
+}
 ```
-
----
-
-## 🧠 Data Flow: End-to-End RAG Pipeline
-
-```mermaid
-sequenceDiagram
-    participant User as User / Frontend
-    participant FastAPI as FastAPI Backend
-    participant Docling as Docling & EasyOCR
-    participant Embedder as SentenceTransformers
-    participant DB as PostgreSQL (pgvector)
-    participant Groq as Groq API (LLaMA 3.3)
-
-    User->>FastAPI: POST /upload-files (Documents)
-    FastAPI-->>User: Returns job_id (Processing in background)
-    FastAPI->>Docling: Parse PDF / Image / OCR & Hybrid Chunk
-    Docling->>Embedder: Generate 768-dim vector embeddings
-    Embedder->>DB: Store Chunks (job_id, chunk_text, embedding)
-
-    loop Polling Status
-        User->>FastAPI: GET /status/{job_id}
-        FastAPI-->>User: Processing / Success
-    end
-
-    User->>FastAPI: POST /qna (query, job_id)
-    FastAPI->>Embedder: Generate query embedding (768-dim)
-    FastAPI->>DB: Cosine distance query (Top-5 chunks by job_id)
-    DB-->>FastAPI: Top-5 relevant chunks
-    FastAPI->>Groq: Generate answer (context chunks + query)
-    Groq-->>FastAPI: Grounded response
-    FastAPI-->>User: Final answer
-```
-
-- **OCR & Document Parsing:** Docling processes text and images, leveraging EasyOCR for scanned pages and automatic 10-page batching for multi-page PDFs.
-- **Contextual Chunking:** Chunker preserves structural headings and paragraphs rather than splitting on raw character counts.
-- **Local Embedding:** Vectors are generated offline using `BAAI/bge-base-en-v1.5` (768 dimensions).
-- **Fast Similarity Search:** PostgreSQL executes cosine distance search directly on indexed vectors.
-- **Grounded Generation:** LangChain sends retrieved context to Groq's high-speed `llama-3.3-70b-versatile` endpoint.
 
 ---
 
 ## 🗄️ Database Schema
 
-Context Engine uses declarative SQLAlchemy 2.0 async ORM models with `pgvector`.
-
-- **`Chunks` Table:** Stores chunk text along with its associated `job_id` and an `embedding` column of type `Vector(768)`.
-
-```python
-class Chunks(Base):
-    """Chunks table model for the database"""
-
-    __tablename__ = "chunks"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-
-    job_id: Mapped[str] = mapped_column(
-        String, unique=False, nullable=False, index=True
-    )
-
-    chunk_text: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-
-    embedding: Mapped[Vector] = mapped_column(
-        Vector(768),
-        nullable=False,
-    )
+```mermaid
+erDiagram
+    JOBS {
+        string job_id PK
+        string owner_token
+        int total_files
+        int succeeded
+        json failed_files
+        string status
+    }
+    CHUNKS {
+        int id PK
+        string job_id FK
+        string source_filename
+        text chunk_text
+        vector_768 embedding
+        tsvector chunk_tsv
+    }
+    JOBS ||--o{ CHUNKS : "contains"
 ```
 
 ---
 
-## 🚀 Deployment Instructions
+## 📂 Project Directory Structure
 
-### Backend Deployment (e.g., Render, Railway, AWS ECS)
-1. Provision a PostgreSQL instance with the `pgvector` extension enabled (e.g., Supabase, Neon, AWS RDS).
-2. Set the `DATABASE_URL` and `DATABASE_URL_ALEMBIC` environment variables.
-3. Configure `GROQ_API_KEY` and `GROQ_MODEL`.
-4. Deploy using the provided `dockerfile` or run with Uvicorn:
-   ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
-   ```
-   > **Note:** Because SentenceTransformers and Docling run locally, a minimum of 2GB RAM is recommended.
+```
+Context-Engine/
+├── app/
+│   ├── database/             # Async database engine, session local & Base
+│   ├── models/               # SQLAlchemy models (Chunks & Jobs)
+│   ├── schema/               # Pydantic request & response schemas
+│   ├── services/
+│   │   ├── chunker.py        # Docling HybridChunker & HF Tokenizer
+│   │   ├── embedder.py       # SentenceTransformers embedding generation
+│   │   ├── reranker_service.py # Cross-Encoder reranking model
+│   │   ├── llm_service.py    # LangChain prompt chain & Groq API client
+│   │   └── pipelines.py      # Ingestion & Hybrid Retrieval pipelines
+│   └── utils/
+│       ├── auth.py           # APIKeyHeader & Owner token authentication
+│       ├── config.py         # Pydantic Settings configuration
+│       ├── file_validator.py # MIME type & file size validation
+│       └── retrieval_utils.py # Reciprocal Rank Fusion (RRF) logic
+├── frontend/
+│   ├── app/                  # Next.js App Router (upload, chat, layout)
+│   ├── components/           # UI components (chat bubbles, dropzone, aurora)
+│   ├── lib/                  # API client, auth headers, cookies helpers
+│   ├── dockerfile            # Multi-stage production Next.js Dockerfile
+│   └── package.json          # Frontend dependencies
+├── alembic/                  # Database migration versions
+├── upload_files/             # Staging directory for incoming files
+├── docker-compose.yml        # Full-stack Docker Compose configuration
+├── dockerfile                # Backend container Dockerfile
+├── pyproject.toml            # Python dependencies (uv)
+└── uv.lock                   # Lockfile for reproducible Python builds
+```
 
-### Frontend Deployment (e.g., Vercel)
-1. Connect your repository to Vercel and select the `frontend` directory as the root.
-2. Set the build command to `npm run build` and install command to `npm install`.
-3. Add the `NEXT_PUBLIC_API_URL` environment variable pointing to your deployed FastAPI backend.
-4. Deploy!
+---
+
+## 🎓 Engineering Decisions & What I Learned
+
+Building Context Engine provided valuable insights into designing high-throughput, low-latency RAG architectures:
+
+- **Hybrid Retrieval (Dense Semantic + Sparse Keyword):** Pure vector search often struggles with exact keyword lookups, acronyms, product IDs, or proper nouns. Combining `pgvector` cosine similarity with PostgreSQL's native Full-Text Search (`TSVECTOR` + GIN indexing with `ts_rank_cd`) ensures strong recall across both conceptual queries and exact term matches.
+- **Reciprocal Rank Fusion (RRF):** Blending scores from different search mechanisms (e.g., cosine distance vs. BM25 / `ts_rank_cd`) is challenging because their raw score distributions are not directly comparable. RRF normalizes this by scoring candidates purely based on their ordinal rank positions ($RRF = \sum \frac{1}{k + r}$), yielding a robust, scale-invariant combined ranking.
+- **Two-Stage Retrieval with Cross-Encoder Neural Reranking:** While bi-encoder embeddings (`BGE-base`) are fast for initial candidate retrieval, they compute query and document representations independently. Passing candidate chunks to a secondary Cross-Encoder model (`ms-marco-MiniLM-L6-v2`) evaluates cross-attention between query and passage tokens simultaneously, significantly improving precision and context quality for the LLM.
+- **Embedded Vector Search with pgvector:** Storing 768-dimensional embeddings directly in PostgreSQL using `pgvector` eliminates the operational overhead of running a separate vector database while maintaining sub-millisecond retrieval speeds.
+- **Exact vs. Approximate Search (Why No HNSW):** Approximate Nearest Neighbor (ANN) indexes like HNSW are ideal for global table scans, but unnecessary for tenant-scoped document retrieval. Because queries are already filtered by `job_id`, the search space is narrowed down to a small candidate set (tens to hundreds of chunks). Exact cosine distance calculation over this filtered subset executes in sub-milliseconds, provides 100% recall with zero approximation loss, and avoids the memory and write latency of building graph indexes during file ingestion.
+- **Asynchronous Ingestion Workflows:** Decoupling heavy file ingestion (OCR, chunking, and embedding generation) into background tasks with a status polling endpoint ensures the API remains fast, non-blocking, and resilient.
+- **Structure-Aware Chunking:** Retrieval quality is heavily determined by chunking strategy. Utilizing Docling with tokenizer-aware boundaries preserves semantic context and markdown hierarchy significantly better than naive fixed-character splits.
+- **Async LLM Orchestration:** Leveraging `.ainvoke()` in LangChain and async SQLAlchemy sessions prevents event loop blocking, enabling high-concurrency request handling under load.
 
 ---
 
-## 🔧 Troubleshooting
+## 🛡️ License
 
-- **`pgvector` Extension Error:** If you get an error about `type "vector" does not exist`, ensure you ran `CREATE EXTENSION IF NOT EXISTS vector;` on your Postgres database before running Alembic migrations.
-- **CORS Issues:** Make sure your frontend's URL (e.g., `http://localhost:3000` or production URL) is configured in `allow_origins` inside `main.py`.
-- **Memory Optimization:** SentenceTransformers and Docling require sufficient memory during model loading and OCR parsing. For containerized environments, ensure at least 2GB of RAM is allocated.
-
----
-
-## 🎓 What I Learned
-
-Building Context Engine provided valuable insights into production RAG pipelines:
-- **Asynchronous Ingestion Workflows:** Decoupling heavy file ingestion (OCR, chunking, and embedding generation) into background tasks with a status polling endpoint ensures the API remains fast and non-blocking.
-- **Structure-Aware Chunking:** Retrieval quality is heavily determined by chunking strategy. Utilizing Docling with tokenizer-aware boundaries preserves semantic context significantly better than naive fixed-character splits.
-- **Embedded Vector Search with pgvector:** Storing 768-dimensional embeddings directly in PostgreSQL using `pgvector` eliminates the operational complexity of managing a separate vector database while maintaining sub-millisecond retrieval speeds.
-- **Exact vs. Approximate Search (Why No HNSW):** Approximate Nearest Neighbor (ANN) indexes like HNSW are ideal for global table scans, but unnecessary for scoped document retrieval. Because queries are already filtered by `job_id`, the search space is narrowed down to a small candidate set (tens to hundreds of chunks). Exact cosine distance calculation over this filtered subset executes in sub-milliseconds, provides 100% recall with zero approximation loss, and avoids the memory and write latency of building graph indexes during file ingestion.
-- **Async LLM Orchestration:** Leveraging `.ainvoke()` in LangChain and async SQLAlchemy sessions prevents event loop blocking, enabling high-concurrency request handling.
-
----
-*Built with ❤️ using FastAPI, Next.js, and PostgreSQL*
+This project is licensed under the [MIT License](LICENSE).
