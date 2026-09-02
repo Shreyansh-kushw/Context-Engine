@@ -44,7 +44,8 @@ services:
       context: ./frontend
       dockerfile: dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        API_KEY: ${API_KEY}
     container_name: context_engine_frontend
     restart: unless-stopped
     ports:
@@ -52,7 +53,8 @@ services:
     env_file:
       - ./frontend/.env.local
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - API_KEY=${API_KEY}
     depends_on:
       - backend
 

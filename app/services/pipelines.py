@@ -190,10 +190,19 @@ async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
     # generating embeddings for the query
     query_embedding = embedder.generate_embeddings(query)
 
+    stmt = select(Jobs).where(Jobs.job_id == job_id).exists()
+    job_exists = await db.scalar(select(stmt))
+    
+    if not job_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job ID not found!"
+        )
+
     # getting all the database fields with the given filename.
     vector_search = await db.execute(
         select(Chunks)
         .where(Chunks.job_id == job_id)
+        .where(Chunks.embedding.cosine_distance(query_embedding) < 0.5)
         .order_by(Chunks.embedding.cosine_distance(query_embedding))
         .limit(20)
     )
@@ -219,13 +228,11 @@ async def retrieval_pipeline(query: str, job_id: str, db: AsyncSession):
 
     fused_chunks = reciprocal_rank_fusion([vector_search_results, keyword_search_results])
 
-    if not fused_chunks:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Job ID not found!"
-        )
-    
-    # Taking the top 5 chunks
-    top_chunks = rerank(query, fused_chunks)
+    if fused_chunks:
+        top_chunks = rerank(query, fused_chunks)
+
+    else:
+        top_chunks = []
 
     response = await generate_response(chunks=top_chunks, question=query)
     return response
